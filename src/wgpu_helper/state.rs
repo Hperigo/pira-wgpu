@@ -1,4 +1,5 @@
 use wgpu::{self, CommandEncoder, TextureFormat, TextureView};
+use winit::dpi::PhysicalSize;
 
 use super::{factories, TextureBundle};
 
@@ -84,6 +85,22 @@ impl State {
             depth_texture: Some(depth_texture),
 
             default_white_texture: _texture,
+        }
+    }
+
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        if new_size.width > 0 && new_size.height > 0 {
+            self.config.width = new_size.width;
+            self.config.height = new_size.height;
+            self.window_surface.configure(&self.device, &self.config);
+
+            if self.depth_texture.is_some() {
+                self.depth_texture = Some(factories::texture::DepthTextureFactory::new(
+                    &self.device,
+                    &self.config,
+                    "Default Depth texture",
+                ));
+            }
         }
     }
 

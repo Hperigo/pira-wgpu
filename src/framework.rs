@@ -1,25 +1,25 @@
-use std::future::Future;
 use std::time::Instant;
 
 use winit::{
     dpi::PhysicalSize,
     event::{self, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
 };
 
-use crate::wgpu_helper::{
-    self,
-    factories::render_pass::{self, RenderPassFactory},
-    State,
-};
+use crate::wgpu_helper::{self, factories::render_pass::RenderPassFactory, State};
 
-pub trait Example: 'static + Sized {
+pub trait Application: 'static + Sized {
     fn optional_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
     fn required_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
+
+    fn clear_color(&self) -> wgpu::Color {
+        wgpu::Color::BLACK
+    }
+
     fn required_downlevel_capabilities() -> wgpu::DownlevelCapabilities {
         wgpu::DownlevelCapabilities {
             flags: wgpu::DownlevelFlags::empty(),
@@ -30,14 +30,14 @@ pub trait Example: 'static + Sized {
     fn required_limits() -> wgpu::Limits {
         wgpu::Limits::downlevel_webgl2_defaults() // These downlevel limits will allow the code to run on all possible hardware
     }
-    fn init(config: &wgpu::SurfaceConfiguration, state: &wgpu_helper::State) -> Self;
+    fn init(state: &wgpu_helper::State) -> Self;
     fn resize(
         &mut self,
         config: &wgpu::SurfaceConfiguration,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
-    fn update(&mut self, event: WindowEvent);
+    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64);
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>);
 }
 
@@ -53,7 +53,7 @@ struct Setup {
     state: State,
 }
 
-async fn setup<E: Example>(title: &str) -> Setup {
+async fn setup<E: Application>(title: &str) -> Setup {
     let event_loop = EventLoop::new();
     let mut builder = winit::window::WindowBuilder::new();
 
@@ -75,33 +75,42 @@ async fn setup<E: Example>(title: &str) -> Setup {
     }
 }
 
-fn start<E: Example>(
+fn start<E: Application>(
     Setup {
         window,
         event_loop,
         size,
-        state,
+        mut state,
     }: Setup,
 ) {
     let mut config = state
         .window_surface
         .get_default_config(&state.adapter, size.width, size.height)
         .expect("Surface isn't supported by the adapter.");
+
     let surface_view_format = config.format.add_srgb_suffix();
     config.view_formats.push(surface_view_format);
+
     state.window_surface.configure(&state.device, &config);
 
-    let mut example = E::init(&config, &state);
-
     let mut last_frame_inst = Instant::now();
-    let (mut frame_count, mut accum_time) = (0, 0.0);
+    let mut frame_count = 0;
+
+    // INIT APPLICATION
+    let mut application = E::init(&state);
 
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::RedrawRequested(_) => {
+            let delta_time = Instant::now() - last_frame_inst;
+            last_frame_inst = Instant::now();
+
+            application.update(&state, frame_count, delta_time.as_secs_f64());
+            frame_count += 1;
+
             state.render(|ctx, frame_data| {
                 let mut render_pass_factory = RenderPassFactory::new();
                 render_pass_factory.add_color_atachment(
-                    wgpu::Color::RED,
+                    application.clear_color(),
                     &frame_data.multisampled_view,
                     Some(&frame_data.view),
                 );
@@ -109,32 +118,29 @@ fn start<E: Example>(
                 let mut render_pass =
                     render_pass_factory.get_render_pass(ctx, &mut frame_data.encoder, true);
 
-                example.render(&state, &mut render_pass);
+                application.render(&state, &mut render_pass);
             });
         }
         winit::event::Event::MainEventsCleared => {
             window.request_redraw();
         }
         winit::event::Event::WindowEvent { ref event, .. } => {
-            use winit::event::WindowEvent;
-
             if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
                 *control_flow = winit::event_loop::ControlFlow::Exit;
             }
 
-            if let winit::event::WindowEvent::Resized(_physical_size) = event {}
-
-            if let winit::event::WindowEvent::Moved(_position) = event {
-                *control_flow = winit::event_loop::ControlFlow::Wait;
+            if let winit::event::WindowEvent::Resized(physical_size) = event {
+                state.resize(*physical_size);
+                // application.resize(config, device, queue)
             }
 
-            if let winit::event::WindowEvent::CursorMoved { position, .. } = event {
-                // app.input_state.mouse_pos = (position.x as f32, position.y as f32);
-            }
+            // if let winit::event::WindowEvent::Moved(_position) = event {
+            //     *control_flow = winit::event_loop::ControlFlow::Wait;
+            // }
 
-            if let winit::event::WindowEvent::Focused(focused) = event {
-                // app.window_visible = *focused;
-            }
+            // if let winit::event::WindowEvent::CursorMoved { position, .. } = event {}
+
+            if let winit::event::WindowEvent::Focused(_focused) = event {}
 
             if let winit::event::WindowEvent::KeyboardInput { input, .. } = event {
                 if input.virtual_keycode == Some(event::VirtualKeyCode::Escape) {
@@ -152,7 +158,7 @@ fn start<E: Example>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run<E: Example>(title: &str) {
+pub fn run<E: Application>(title: &str) {
     let setup = pollster::block_on(setup::<E>(title));
     start::<E>(setup);
 }

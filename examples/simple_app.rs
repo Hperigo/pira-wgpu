@@ -2,9 +2,9 @@ use std::borrow::Cow;
 
 use wgpu::util::DeviceExt;
 use wgpu::RenderPass;
-use wgpu_app_lib::framework::Example;
-use wgpu_app_lib::wgpu_helper::factories::{bind_group, RenderPipelineFactory};
-use wgpu_app_lib::wgpu_helper::BindGroupFactory;
+use wgpu_app_lib::framework::Application;
+use wgpu_app_lib::wgpu_helper::factories::RenderPipelineFactory;
+use wgpu_app_lib::wgpu_helper::{BindGroupFactory, State};
 use wgpu_app_lib::{framework, wgpu_helper};
 
 const SHADER_SRC: &'static str = " 
@@ -55,8 +55,8 @@ struct MyExample {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl Example for MyExample {
-    fn init(config: &wgpu::SurfaceConfiguration, state: &wgpu_helper::State) -> Self {
+impl Application for MyExample {
+    fn init(state: &wgpu_helper::State) -> Self {
         let vertices = vec![
             Vertex {
                 position: [0.0, 0.0, 0.0],
@@ -97,12 +97,6 @@ impl Example for MyExample {
         let pipeline =
             pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);
 
-        // let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Vertex buffer"),
-        //     contents: bytemuck::cast_slice(&vertices),
-        //     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        // });
-
         MyExample {
             buffer: state
                 .device
@@ -124,21 +118,28 @@ impl Example for MyExample {
         }
     }
 
-    fn update(&mut self, _event: winit::event::WindowEvent) {
-        //empty
+    fn clear_color(&self) -> wgpu::Color {
+        wgpu::Color {
+            r: 0.5,
+            g: 0.15,
+            b: 0.3,
+            a: 1.0,
+        }
     }
+
+    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {}
 
     fn resize(
         &mut self,
-        config: &wgpu::SurfaceConfiguration,
+        _config: &wgpu::SurfaceConfiguration,
         _device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _queue: &wgpu::Queue,
     ) {
     }
 
     fn render<'rpass>(
         &'rpass self,
-        state: &wgpu_helper::State,
+        _state: &wgpu_helper::State,
         render_pass: &mut RenderPass<'rpass>,
     ) {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
