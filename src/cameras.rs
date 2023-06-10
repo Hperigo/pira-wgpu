@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use glam::{Mat4, Vec3, Vec4};
 
 pub trait CameraTrait {
@@ -77,7 +79,7 @@ impl OrbitControls {
 
             sensitivity: 0.1,
 
-            orbit_local_position: glam::Vec3::ZERO,
+            orbit_local_position: glam::Vec3::ONE.mul(4.0),
             target_world_position: glam::Vec3::ZERO,
         }
     }
@@ -129,6 +131,7 @@ impl OrbitControls {
     }
 
     fn handle_zoom(&mut self, value: f32) {
+        println!("ZOOM {}", self.zoom);
         self.zoom += value;
         self.zoom = self.zoom.max(std::f32::EPSILON);
     }
@@ -181,7 +184,7 @@ impl OrbitControls {
         }
     }
 
-    fn update_local_pos(&mut self) -> glam::Vec3 {
+    fn update_local_pos(&mut self) {
         let lat_r = self.lat.to_radians();
         let long_r = self.long.to_radians();
 
@@ -191,7 +194,7 @@ impl OrbitControls {
             lat_r.cos() * long_r.cos(),
         ) * self.zoom;
 
-        pos
+        self.orbit_local_position = pos;
     }
 
     pub fn get_target_position(&self) -> Vec3 {
@@ -206,8 +209,12 @@ impl OrbitControls {
         self.orbit_local_position
     }
 
-    pub fn get_model_matrix(&mut self) -> glam::Mat4 {
-        self.orbit_local_position = self.update_local_pos();
+    pub fn update(&mut self) {
+        println!("Updated!");
+        self.update_local_pos();
+    }
+
+    pub fn get_model_matrix(&self) -> glam::Mat4 {
         glam::Mat4::look_at_lh(
             self.orbit_local_position + self.target_world_position,
             self.target_world_position,
@@ -216,8 +223,7 @@ impl OrbitControls {
         .inverse()
     }
 
-    pub fn get_view_matrix(&mut self) -> glam::Mat4 {
-        self.orbit_local_position = self.update_local_pos();
+    pub fn get_view_matrix(&self) -> glam::Mat4 {
         glam::Mat4::look_at_lh(
             self.orbit_local_position + self.target_world_position,
             self.target_world_position,

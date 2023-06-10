@@ -6,6 +6,7 @@ use wgpu_app_lib::framework::Application;
 use wgpu_app_lib::wgpu_helper::factories::RenderPipelineFactory;
 use wgpu_app_lib::wgpu_helper::{BindGroupFactory, State};
 use wgpu_app_lib::{framework, wgpu_helper};
+use winit::dpi::PhysicalSize;
 
 const SHADER_SRC: &'static str = " 
 
@@ -18,13 +19,6 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec3<f32>,
 };
-
-/*
-@group(0) @binding(2)
-var t_diffuse: texture_2d<f32>;
-@group(0)@binding(3)
-var s_diffuse: sampler;
-*/
 
 @vertex
 fn vs_main( model : VertexInput ) -> VertexOutput {
@@ -48,6 +42,7 @@ struct Vertex {
 }
 
 struct MyExample {
+    clear_color: [f32; 4],
     buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
 
@@ -91,13 +86,13 @@ impl Application for MyExample {
         let stride = std::mem::size_of::<Vertex>() as u64;
         let mut pipeline_factory = RenderPipelineFactory::new();
         pipeline_factory.add_vertex_attributes(&attribs, stride);
-        // // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
         pipeline_factory.add_depth_stencil();
 
         let pipeline =
             pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);
 
         MyExample {
+            clear_color: [0.0, 0.0, 0.0, 0.0],
             buffer: state
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -120,14 +115,26 @@ impl Application for MyExample {
 
     fn clear_color(&self) -> wgpu::Color {
         wgpu::Color {
-            r: 0.5,
-            g: 0.15,
-            b: 0.3,
-            a: 1.0,
+            r: self.clear_color[0] as f64,
+            g: self.clear_color[1] as f64,
+            b: self.clear_color[2] as f64,
+            a: self.clear_color[3] as f64,
         }
     }
 
-    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {}
+    fn update(&mut self, _state: &State, ui: &mut imgui::Ui, _frame_count: u64, _delta_time: f64) {
+        let w = ui
+            .window("debug")
+            .size([200.0, 300.0], imgui::Condition::FirstUseEver)
+            .begin();
+        if let Some(w) = w {
+            imgui::Drag::new("clear color")
+                .speed(0.01)
+                .range(0.0, 1.0)
+                .build_array(ui, &mut self.clear_color);
+            w.end();
+        }
+    }
 
     fn resize(
         &mut self,
@@ -136,6 +143,8 @@ impl Application for MyExample {
         _queue: &wgpu::Queue,
     ) {
     }
+
+    fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
     fn render<'rpass>(
         &'rpass self,
@@ -151,5 +160,11 @@ impl Application for MyExample {
 }
 
 fn main() {
-    framework::run::<MyExample>("title");
+    framework::run::<MyExample>(
+        "simple_app",
+        PhysicalSize {
+            width: 1920 * 2,
+            height: 1080 * 2,
+        },
+    );
 }
