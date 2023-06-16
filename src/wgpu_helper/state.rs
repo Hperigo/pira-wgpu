@@ -14,7 +14,8 @@ pub struct State {
 
     pub depth_texture: Option<TextureBundle>,
 
-    pub default_white_texture: wgpu::Texture,
+    pub default_white_texture_bundle: TextureBundle,
+    //pub default_white_texture_view: wgpu::TextureView,
 }
 
 pub struct PerFrameData {
@@ -71,7 +72,7 @@ impl State {
         let data: [u8; 16] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
         ];
-        let (_texture, _view, _sampler) = tf.get_texture_and_sampler(&device, &queue, &data);
+        let (texture, view, sampler) = tf.get_texture_and_sampler(&device, &queue, &data);
 
         State {
             instance,
@@ -84,7 +85,11 @@ impl State {
             config,
             depth_texture: Some(depth_texture),
 
-            default_white_texture: _texture,
+            default_white_texture_bundle: TextureBundle {
+                texture,
+                view,
+                sampler,
+            },
         }
     }
 

@@ -3,19 +3,14 @@ use wgpu_app_lib::{
     cameras::{self, CameraTrait, OrbitControls},
     framework::{self, Application},
     geometry::{axis, GeometryFactory},
-    pipelines::{self, shadeless::GpuMesh, shadeless::ShadelessPipeline, ModelUniform},
-    wgpu_helper::factories,
+    pipelines::{self, shadeless::GpuMesh, shadeless::ShadelessPipeline},
 };
 use winit::dpi::PhysicalSize;
 
 struct MyExample {
     mesh: GpuMesh,
     pipeline_batch: ShadelessPipeline,
-
-    global_uniform_buffer: wgpu::Buffer,
-    model_uniform_buffer: wgpu::Buffer,
-
-    camera: cameras::PespectiveCamera,
+    // camera: cameras::PespectiveCamera,
     orbit_control: cameras::OrbitControls,
 }
 
@@ -25,35 +20,13 @@ impl Application for MyExample {
         axis_geo.texture_coords();
         axis_geo.vertex_colors();
 
-        // let (buffer, index_buffer) = cube.geometry.get_vertex_index_buffer(&state);
-
-        let global_uniform_buffer = pipelines::create_global_uniform(&state.device);
-
-        let camera_matrix = glam::Mat4::IDENTITY;
-        pipelines::write_global_uniform_buffer(camera_matrix, &global_uniform_buffer, &state.queue);
-
-        let model_matrix = glam::Mat4::IDENTITY;
-        let matrices = [
-            pipelines::ModelUniform::new(model_matrix),
-            pipelines::ModelUniform::new(model_matrix),
-            pipelines::ModelUniform::new(model_matrix),
-        ];
-
-        let model_uniform_buffer =
-            pipelines::create_uniform_buffer::<ModelUniform>(matrices.len(), &state.device);
-
-        let tf = factories::Texture2dFactory::new(2, 2);
-        let data: [u8; 16] = [
-            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-        ];
-        let (_texture, view, sampler) =
-            tf.get_texture_and_sampler(&state.device, &state.queue, &data);
-
         let pipeline_batch = ShadelessPipeline::new_with_texture(
             state,
-            &global_uniform_buffer,
-            &model_uniform_buffer,
-            (wgpu::ShaderStages::FRAGMENT, &sampler, &view),
+            (
+                wgpu::ShaderStages::FRAGMENT,
+                &state.default_white_texture_bundle.sampler,
+                &state.default_white_texture_bundle.view,
+            ),
             PrimitiveTopology::LineStrip,
         );
 
@@ -65,12 +38,9 @@ impl Application for MyExample {
         camera.look_at(glam::Vec3::ZERO);
 
         Self {
-            camera,
-            model_uniform_buffer,
-            global_uniform_buffer,
             mesh,
             pipeline_batch,
-            orbit_control: OrbitControls::new(),
+            orbit_control: OrbitControls::new(size[0] / size[1]),
         }
     }
 
@@ -97,6 +67,8 @@ impl Application for MyExample {
         _frame_count: u64,
         _delta_time: f64,
     ) {
+        _ui.show_about_window(&mut true);
+
         self.orbit_control.update();
     }
 
@@ -132,14 +104,14 @@ impl Application for MyExample {
         matrices[1].model_matrix = self.orbit_control.get_model_matrix();
 
         pipelines::write_global_uniform_buffer(
-            self.camera.get_perspective_matrix() * self.orbit_control.get_view_matrix(),
-            &self.global_uniform_buffer,
+            self.orbit_control.get_perspective_view_matrix(),
+            self.pipeline_batch.global_uniform_buffer.as_ref().unwrap(),
             &state.queue,
         );
 
         pipelines::write_uniform_buffer(
             &matrices,
-            &self.model_uniform_buffer,
+            self.pipeline_batch.model_uniform_buffer.as_ref().unwrap(),
             &state.queue,
             &state.device,
         );
@@ -159,8 +131,6 @@ impl Application for MyExample {
             );
             render_pass.draw_indexed(0..self.mesh.vertex_count, 0, 0..1);
         }
-
-        println!("Rendering");
     }
 }
 

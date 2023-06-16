@@ -104,7 +104,21 @@ impl GeometryFactory for Cube {
 
 
     // NOT IMPL
-    fn vertex_colors(&mut self) {todo!();}
+    fn vertex_colors(&mut self) {
+
+        let pos =  self.geometry.attributes.get(&attribute_names::POSITION).unwrap();
+        let mut colors = Vec::new();
+
+        for _ in pos{
+            colors.push(1.0);
+            colors.push(1.0);
+            colors.push(1.0);
+        }
+        self.geometry.attributes.insert(attribute_names::COLOR, colors);
+        
+    }
+
+
     fn normals(&mut self) {
         let pos =  self.geometry.attributes.get(&attribute_names::POSITION).unwrap();
         let mut normals = Vec::new();

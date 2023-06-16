@@ -8,6 +8,7 @@ pub trait CameraTrait {
     fn look_at(&mut self, target: glam::Vec3);
 }
 
+#[derive(Debug)]
 pub struct PespectiveCamera {
     pub position: glam::Vec3,
     pub rotation: glam::Quat,
@@ -64,10 +65,12 @@ pub struct OrbitControls {
 
     orbit_local_position: glam::Vec3,
     target_world_position: glam::Vec3,
+
+    pub camera: PespectiveCamera,
 }
 
 impl OrbitControls {
-    pub fn new() -> Self {
+    pub fn new(aspect_ratio: f32) -> Self {
         Self {
             is_left_mouse_dragging: false,
             is_middle_mouse_dragging: false,
@@ -81,6 +84,8 @@ impl OrbitControls {
 
             orbit_local_position: glam::Vec3::ONE.mul(4.0),
             target_world_position: glam::Vec3::ZERO,
+
+            camera: self::PespectiveCamera::new(45.0, aspect_ratio, 0.01, 1000.0),
         }
     }
 
@@ -131,7 +136,6 @@ impl OrbitControls {
     }
 
     fn handle_zoom(&mut self, value: f32) {
-        println!("ZOOM {}", self.zoom);
         self.zoom += value;
         self.zoom = self.zoom.max(std::f32::EPSILON);
     }
@@ -210,7 +214,6 @@ impl OrbitControls {
     }
 
     pub fn update(&mut self) {
-        println!("Updated!");
         self.update_local_pos();
     }
 
@@ -229,5 +232,9 @@ impl OrbitControls {
             self.target_world_position,
             glam::Vec3::Y,
         )
+    }
+
+    pub fn get_perspective_view_matrix(&self) -> glam::Mat4 {
+        self.camera.get_perspective_matrix() * self.get_view_matrix()
     }
 }

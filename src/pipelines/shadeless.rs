@@ -7,6 +7,8 @@ use crate::{
 
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 
+use super::{create_global_uniform, create_uniform_buffer, ModelUniform};
+
 const SHADER_SRC: &'static str = " 
 
 struct VertexInput {
@@ -73,15 +75,13 @@ pub struct ShadelessPipeline {
 
     pub texture_bind_group_layout: Option<wgpu::BindGroupLayout>,
     pub texture_bind_group: Option<wgpu::BindGroup>,
+
+    pub global_uniform_buffer: Option<wgpu::Buffer>,
+    pub model_uniform_buffer: Option<wgpu::Buffer>,
 }
 
 impl ShadelessPipeline {
-    pub fn new(
-        ctx: &wgpu_helper::State,
-        global_uniform_buffer: &wgpu::Buffer,
-        model_uniform_buffer: &wgpu::Buffer,
-        topology: PrimitiveTopology,
-    ) -> Self {
+    pub fn new(ctx: &wgpu_helper::State, topology: PrimitiveTopology) -> Self {
         let shader_module = ctx
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -91,6 +91,9 @@ impl ShadelessPipeline {
 
         let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x3 ];
         let stride = std::mem::size_of::<Vertex>() as u64;
+
+        let global_uniform_buffer = create_global_uniform(&ctx.device);
+        let model_uniform_buffer = create_uniform_buffer::<ModelUniform>(1, &ctx.device);
 
         let mut bind_factory = BindGroupFactory::new();
         bind_factory.add_uniform(
@@ -124,13 +127,16 @@ impl ShadelessPipeline {
 
             texture_bind_group_layout: None,
             texture_bind_group: None,
+
+            model_uniform_buffer: None,
+            global_uniform_buffer: None,
         }
     }
 
     pub fn new_with_texture(
         ctx: &wgpu_helper::State,
-        global_uniform_buffer: &wgpu::Buffer,
-        model_uniform_buffer: &wgpu::Buffer,
+        // global_uniform_buffer: &wgpu::Buffer,
+        // model_uniform_buffer: &wgpu::Buffer,
         texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
         topology: PrimitiveTopology,
     ) -> Self {
@@ -143,6 +149,9 @@ impl ShadelessPipeline {
 
         let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x3 ];
         let stride = std::mem::size_of::<Vertex>() as u64;
+
+        let global_uniform_buffer = create_global_uniform(&ctx.device);
+        let model_uniform_buffer = create_uniform_buffer::<ModelUniform>(1, &ctx.device);
 
         let mut bind_factory = BindGroupFactory::new();
         bind_factory.add_uniform(
@@ -183,6 +192,9 @@ impl ShadelessPipeline {
 
             texture_bind_group_layout: Some(texture_bind_group_layout),
             texture_bind_group: Some(texture_bind_group),
+
+            global_uniform_buffer: Some(global_uniform_buffer),
+            model_uniform_buffer: Some(model_uniform_buffer),
         }
     }
 
