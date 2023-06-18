@@ -1,4 +1,7 @@
-use super::{attribute_names, GeometryData, GeometryFactory};
+use super::{
+    attribute_names::{self, COLOR, NORMALS},
+    GeometryData, GeometryFactory,
+};
 
 pub struct Sphere {
     pub geometry: GeometryData,
@@ -67,6 +70,19 @@ impl Sphere {
             segments,
             rings,
         }
+    }
+
+    pub fn vertex_colors_from_normal(&mut self) {
+        if self.geometry.attributes.contains_key(&NORMALS) == false {
+            self.normals();
+        }
+
+        let normals = self.geometry.attributes.get(&NORMALS).unwrap();
+        let mut colors = Vec::new();
+        for i in 0..normals.len() {
+            colors.push(normals[i]);
+        }
+        self.geometry.attributes.insert(COLOR, colors);
     }
 }
 

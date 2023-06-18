@@ -32,7 +32,7 @@ impl Application for MyExample {
 
         let mesh = ShadelessPipeline::get_buffers_from_geometry(state, &axis_geo.geometry);
 
-        let size = [1920.0, 1080.0];
+        let size = state.window_size;
         let mut camera = cameras::PespectiveCamera::new(45.0, size[0] / size[1], 0.001, 10000.0);
         camera.position = glam::vec3(100.0, 70.0, -100.0);
         camera.look_at(glam::Vec3::ZERO);
@@ -54,10 +54,10 @@ impl Application for MyExample {
     }
     fn event(
         &mut self,
-        _state: &wgpu_app_lib::wgpu_helper::State,
+        state: &wgpu_app_lib::wgpu_helper::State,
         event: &winit::event::WindowEvent,
     ) {
-        self.orbit_control.handle_events(event);
+        self.orbit_control.handle_events(state, event);
     }
 
     fn update(

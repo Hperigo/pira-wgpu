@@ -7,8 +7,11 @@ use wgpu_app_lib::{
 use winit::dpi::PhysicalSize;
 
 struct Object {
+    name: &'static str,
     mesh: pipelines::shadeless::GpuMesh,
-    model_uniform: pipelines::ModelUniform,
+    position: glam::Vec3,
+    rotation: glam::Quat,
+    scale: glam::Vec3,
 }
 
 struct MyExample {
@@ -29,16 +32,16 @@ impl Application for MyExample {
             wgpu::PrimitiveTopology::TriangleList,
         );
 
-        let size = [1920.0, 1080.0];
-
         let mut cube = geometry::Cube::new(5.0);
         cube.texture_coords();
-        cube.vertex_colors();
+        // cube.vertex_colors();
         let mesh = shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube.geometry);
 
         let mut sphere = geometry::Sphere::new(5.0, 16, 16);
         sphere.texture_coords();
-        sphere.vertex_colors();
+        sphere.normals();
+        sphere.vertex_colors_from_normal();
+        // sphere.vertex_colors();
         let axis_mesh =
             shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &sphere.geometry);
 
@@ -46,18 +49,22 @@ impl Application for MyExample {
             batch,
             objects: vec![
                 Object {
+                    name: "Cube",
                     mesh,
-                    model_uniform: ModelUniform::new(glam::Mat4::IDENTITY),
+                    position: glam::Vec3::ZERO,
+                    rotation: glam::Quat::IDENTITY,
+                    scale: glam::Vec3::ONE,
                 },
                 Object {
+                    name: "Sphere",
                     mesh: axis_mesh,
-                    model_uniform: ModelUniform::new(glam::Mat4::from_translation(glam::vec3(
-                        12.0, 0.0, 0.0,
-                    ))),
+                    position: glam::vec3(12.0, 0.0, 0.0),
+                    rotation: glam::Quat::IDENTITY,
+                    scale: glam::Vec3::ONE,
                 },
             ],
 
-            orbit_controls: OrbitControls::new(size[0] / size[1]),
+            orbit_controls: OrbitControls::new(state.window_size[0] / state.window_size[1]),
         }
     }
 
@@ -72,20 +79,51 @@ impl Application for MyExample {
 
     fn event(
         &mut self,
-        _state: &wgpu_app_lib::wgpu_helper::State,
+        state: &wgpu_app_lib::wgpu_helper::State,
         event: &winit::event::WindowEvent,
     ) {
-        self.orbit_controls.handle_events(event);
+        self.orbit_controls.handle_events(state, event);
     }
 
     fn update(
         &mut self,
         _state: &wgpu_app_lib::wgpu_helper::State,
-        _ui: &mut imgui::Ui,
+        ui: &mut imgui::Ui,
         _frame_count: u64,
         _delta_time: f64,
     ) {
         self.orbit_controls.update();
+
+        ui.window("Objects")
+            .size([400.0, 200.0], imgui::Condition::Always)
+            .build(|| {
+                for i in 0..self.objects.len() {
+                    ui.spacing();
+
+                    let obj = &mut self.objects[i];
+
+                    ui.label_text(obj.name, "");
+
+                    let _id = ui.push_id(format!("{}", i).as_str());
+                    imgui::Drag::new("Position").build_array(ui, obj.position.as_mut());
+                    imgui::Drag::new("Scale").build_array(ui, obj.scale.as_mut());
+
+                    let euler_rot = obj.rotation.to_euler(glam::EulerRot::XYZ);
+                    let mut euler_rot = [euler_rot.0, euler_rot.1, euler_rot.2];
+                    if imgui::Drag::new("Rotation")
+                        .speed(0.01)
+                        .build_array(ui, &mut euler_rot)
+                    {
+                        println!("Changed! {:?}", euler_rot);
+                        obj.rotation = glam::Quat::from_euler(
+                            glam::EulerRot::XYZ,
+                            euler_rot[0],
+                            euler_rot[1],
+                            euler_rot[2],
+                        );
+                    }
+                }
+            });
     }
 
     fn render<'rpass>(
@@ -99,7 +137,10 @@ impl Application for MyExample {
 
         let mut matrices = Vec::new();
         for i in 0..self.objects.len() {
-            matrices.push(self.objects[i].model_uniform);
+            let obj = &self.objects[i];
+            let m =
+                glam::Mat4::from_scale_rotation_translation(obj.scale, obj.rotation, obj.position);
+            matrices.push(ModelUniform { model_matrix: m });
         }
 
         pipelines::write_global_uniform_buffer(
@@ -130,10 +171,11 @@ impl Application for MyExample {
             render_pass.set_vertex_buffer(0, obj.mesh.vertex_buffer.slice(..));
             render_pass
                 .set_index_buffer(obj.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+
             render_pass.draw_indexed(0..obj.mesh.vertex_count, 0, 0..1);
         }
 
-        println!("Rendering");
+        // println!("Rendering");
     }
 }
 

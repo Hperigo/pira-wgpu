@@ -1,6 +1,8 @@
 use std::ops::Mul;
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
+
+use crate::wgpu_helper;
 
 pub trait CameraTrait {
     fn get_perspective_matrix(&self) -> glam::Mat4;
@@ -89,7 +91,7 @@ impl OrbitControls {
         }
     }
 
-    pub fn handle_events(&mut self, event: &winit::event::WindowEvent) {
+    pub fn handle_events(&mut self, state: &wgpu_helper::State, event: &winit::event::WindowEvent) {
         use winit::event;
 
         if let event::WindowEvent::MouseInput { state, button, .. } = event {
@@ -106,7 +108,6 @@ impl OrbitControls {
         if let event::WindowEvent::MouseWheel { delta, .. } = event {
             match delta {
                 event::MouseScrollDelta::LineDelta(_x, y) => {
-                    // self.distance += y;
                     self.handle_zoom(*y);
                 }
                 _ => (),
@@ -114,7 +115,7 @@ impl OrbitControls {
         }
 
         if let event::WindowEvent::CursorMoved { position, .. } = event {
-            self.handle_mouse_move(glam::vec2(position.x as f32, position.y as f32));
+            self.handle_mouse_move(state, glam::vec2(position.x as f32, position.y as f32));
 
             // self.mouse_input(
             //     *position,
@@ -141,7 +142,7 @@ impl OrbitControls {
     }
 
     // on mouse click or touch drag
-    fn handle_mouse_move(&mut self, position: glam::Vec2) {
+    fn handle_mouse_move(&mut self, state: &wgpu_helper::State, position: glam::Vec2) {
         match self.last_mouse_position {
             None => self.last_mouse_position = Some(position), // if last mouse position is None, we need to skip this logic and set the position
             Some(last_mouse_position) => {
@@ -163,24 +164,27 @@ impl OrbitControls {
                 }
 
                 if self.is_middle_mouse_dragging {
-                    let delta = (position - last_mouse_position) * self.sensitivity;
+                    let delta = position - last_mouse_position; // * self.sensitivity;
                     let length = delta.length();
 
                     if length < 0.01 {
                         return;
                     }
+                    let aspect_ratio = state.window_size[0] / state.window_size[1];
+                    let delta_normalized =
+                        delta / glam::vec2(state.window_size[0], state.window_size[1]);
 
-                    let mut x_axis: Vec4 = self.get_pan_matrix() * Vec4::X;
-                    let mut y_axis: Vec4 = self.get_pan_matrix() * Vec4::Y;
+                    let ctd = self.zoom * 1.3; // not sure how but this number helps the camera lock on target.
+                    let image_plane_height = 2.0 * ctd * (self.camera.fov.to_radians() * 0.5).tan();
+                    let image_plane_width = image_plane_height * aspect_ratio;
 
-                    x_axis *= delta.x;
-                    y_axis *= delta.y;
+                    let mut x_axis: Vec3 = (self.get_pan_matrix() * Vec4::X).xyz();
+                    let mut y_axis: Vec3 = (self.get_pan_matrix() * Vec4::Y).xyz();
 
-                    self.target_world_position += (glam::vec3(x_axis.x, x_axis.y, x_axis.z)
-                        + glam::vec3(y_axis.x, y_axis.y, y_axis.z))
-                    .normalize()
-                        * delta.length()
-                        * 0.5;
+                    x_axis *= delta_normalized.x * image_plane_width;
+                    y_axis *= delta_normalized.y * image_plane_height;
+
+                    self.target_world_position += x_axis + y_axis;
                 }
 
                 self.last_mouse_position = Some(position);

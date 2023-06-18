@@ -15,6 +15,8 @@ pub struct State {
     pub depth_texture: Option<TextureBundle>,
 
     pub default_white_texture_bundle: TextureBundle,
+
+    pub window_size: [f32; 2],
     //pub default_white_texture_view: wgpu::TextureView,
 }
 
@@ -90,6 +92,8 @@ impl State {
                 view,
                 sampler,
             },
+
+            window_size: [1920.0, 1080.0],
         }
     }
 

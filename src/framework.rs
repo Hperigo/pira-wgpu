@@ -175,9 +175,14 @@ fn start<E: Application>(
                 window.request_redraw();
             }
             winit::event::Event::WindowEvent { ref event, .. } => {
-                let ui_active = unsafe { imgui::sys::igIsAnyItemActive() };
+                let ui_active = unsafe {
+                    imgui::sys::igIsWindowHovered(imgui::sys::ImGuiHoveredFlags_AnyWindow as i32)
+                };
+
                 if !ui_active {
                     application.event(&mut state, event);
+                } else {
+                    println!("{} Active: {}", frame_count, ui_active);
                 }
 
                 if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
@@ -185,6 +190,7 @@ fn start<E: Application>(
                 }
 
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
+                    state.window_size = [physical_size.width as f32, physical_size.height as f32];
                     state.resize(*physical_size);
                 }
 
