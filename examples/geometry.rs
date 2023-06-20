@@ -16,6 +16,7 @@ struct Object {
 
 struct MyExample {
     batch: wgpu_app_lib::pipelines::shadeless::ShadelessPipeline,
+    wire_pipeline: wgpu_app_lib::pipelines::shadeless::ShadelessPipeline,
     objects: Vec<Object>,
     orbit_controls: OrbitControls,
 }
@@ -37,7 +38,7 @@ impl Application for MyExample {
         // cube.vertex_colors();
         let mesh = shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube.geometry);
 
-        let mut sphere = geometry::Sphere::new(5.0, 16, 16);
+        let mut sphere = geometry::Sphere::new(5.0, 16, 32);
         sphere.texture_coords();
         sphere.normals();
         sphere.vertex_colors_from_normal();
@@ -45,8 +46,19 @@ impl Application for MyExample {
         let axis_mesh =
             shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &sphere.geometry);
 
+        let wire_pipeline = pipelines::shadeless::ShadelessPipeline::new_with_texture(
+            state,
+            (
+                wgpu::ShaderStages::FRAGMENT,
+                &state.default_white_texture_bundle.sampler,
+                &state.default_white_texture_bundle.view,
+            ),
+            wgpu::PrimitiveTopology::LineList,
+        );
+
         Self {
             batch,
+            wire_pipeline,
             objects: vec![
                 Object {
                     name: "Cube",
@@ -165,6 +177,49 @@ impl Application for MyExample {
             render_pass.set_bind_group(
                 0,
                 &self.batch.bind_group,
+                &[0, uniform_alignment as u32 * i as u32],
+            );
+            // render_pass.draw_indexed(0..self.mesh.vertex_count, 0,
+            render_pass.set_vertex_buffer(0, obj.mesh.vertex_buffer.slice(..));
+            render_pass
+                .set_index_buffer(obj.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+
+            render_pass.draw_indexed(0..obj.mesh.vertex_count, 0, 0..1);
+        }
+
+        // WIREFRAME PASS ----
+        matrices.clear();
+        for i in 0..self.objects.len() {
+            let obj = &self.objects[i];
+            let m = glam::Mat4::from_scale_rotation_translation(
+                obj.scale,
+                obj.rotation,
+                obj.position + glam::vec3(25.0, 0.0, 0.0),
+            );
+            matrices.push(ModelUniform { model_matrix: m });
+        }
+
+        pipelines::write_global_uniform_buffer(
+            self.orbit_controls.get_perspective_view_matrix(),
+            self.wire_pipeline.global_uniform_buffer.as_ref().unwrap(),
+            &state.queue,
+        );
+
+        pipelines::write_uniform_buffer(
+            &matrices,
+            &self.wire_pipeline.model_uniform_buffer.as_ref().unwrap(),
+            &state.queue,
+            &state.device,
+        );
+
+        render_pass.set_pipeline(&self.wire_pipeline.pipeline);
+
+        for i in 0..self.objects.len() {
+            let obj = &self.objects[i];
+
+            render_pass.set_bind_group(
+                0,
+                &self.wire_pipeline.bind_group,
                 &[0, uniform_alignment as u32 * i as u32],
             );
             // render_pass.draw_indexed(0..self.mesh.vertex_count, 0,

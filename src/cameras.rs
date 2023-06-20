@@ -1,8 +1,7 @@
 use std::ops::Mul;
 
-use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
-
 use crate::wgpu_helper;
+use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 
 pub trait CameraTrait {
     fn get_perspective_matrix(&self) -> glam::Mat4;
@@ -94,6 +93,10 @@ impl OrbitControls {
     pub fn handle_events(&mut self, state: &wgpu_helper::State, event: &winit::event::WindowEvent) {
         use winit::event;
 
+        if let event::WindowEvent::Resized(size) = event {
+            self.camera.aspect_ratio = size.width as f32 / size.height as f32;
+        }
+
         if let event::WindowEvent::MouseInput { state, button, .. } = event {
             if matches!(state, event::ElementState::Pressed) {
                 self.handle_mouse_press(
@@ -106,11 +109,14 @@ impl OrbitControls {
         }
 
         if let event::WindowEvent::MouseWheel { delta, .. } = event {
+            println!("Wheel, {:?}", delta);
             match delta {
                 event::MouseScrollDelta::LineDelta(_x, y) => {
                     self.handle_zoom(*y);
                 }
-                _ => (),
+                event::MouseScrollDelta::PixelDelta(position) => {
+                    self.handle_zoom(position.y as f32 * 0.5);
+                }
             }
         }
 
@@ -125,6 +131,10 @@ impl OrbitControls {
             //     ],
             // );
         }
+
+        // if let WindowEvent::Touch() = event {
+        //     println!("Touch! {:?}", touch);
+        // }
     }
 
     fn handle_mouse_press(&mut self, value: bool, middle_mouse: bool) {
