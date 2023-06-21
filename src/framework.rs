@@ -175,15 +175,13 @@ fn start<E: Application>(
                 window.request_redraw();
             }
             winit::event::Event::WindowEvent { ref event, .. } => {
-                let ui_active = unsafe {
-                    imgui::sys::igIsWindowHovered(imgui::sys::ImGuiHoveredFlags_AnyWindow as i32)
+                unsafe {
+                    if !imgui::sys::igIsWindowHovered(
+                        imgui::sys::ImGuiHoveredFlags_AnyWindow as i32,
+                    ) {
+                        application.event(&mut state, event);
+                    }
                 };
-
-                if !ui_active {
-                    application.event(&mut state, event);
-                } else {
-                    println!("{} Active: {}", frame_count, ui_active);
-                }
 
                 if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
                     *control_flow = winit::event_loop::ControlFlow::Exit;
