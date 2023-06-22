@@ -109,7 +109,6 @@ impl OrbitControls {
         }
 
         if let event::WindowEvent::MouseWheel { delta, .. } = event {
-            println!("Wheel, {:?}", delta);
             match delta {
                 event::MouseScrollDelta::LineDelta(_x, y) => {
                     self.handle_zoom(*y);

@@ -126,7 +126,6 @@ impl Application for MyExample {
                         .speed(0.01)
                         .build_array(ui, &mut euler_rot)
                     {
-                        println!("Changed! {:?}", euler_rot);
                         obj.rotation = glam::Quat::from_euler(
                             glam::EulerRot::XYZ,
                             euler_rot[0],
