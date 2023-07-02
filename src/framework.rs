@@ -56,7 +56,7 @@ struct Setup {
     state: State,
 }
 
-async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>) -> Setup {
+async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_count: u32) -> Setup {
     let event_loop = EventLoop::new();
     let mut builder = winit::window::WindowBuilder::new();
 
@@ -65,7 +65,7 @@ async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>) -> Setup {
     let window = builder.build(&event_loop).unwrap();
     let size = window.inner_size();
 
-    let state = wgpu_helper::State::new(&window).await;
+    let state = wgpu_helper::State::new(sample_count, &window).await;
 
     Setup {
         window,
@@ -207,7 +207,7 @@ fn start<E: Application>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run<E: Application>(title: &str, size: PhysicalSize<u32>) {
-    let setup = pollster::block_on(setup::<E>(title, size));
+pub fn run<E: Application>(title: &str, size: PhysicalSize<u32>, sample_count: u32) {
+    let setup = pollster::block_on(setup::<E>(title, size, sample_count));
     start::<E>(setup);
 }

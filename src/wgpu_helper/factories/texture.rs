@@ -1,7 +1,5 @@
 use wgpu::util::DeviceExt;
 
-use crate::wgpu_helper::State;
-
 pub struct Texture2dFactory<'a> {
     sampler_descriptor: wgpu::SamplerDescriptor<'a>,
     texture_descriptor: wgpu::TextureDescriptor<'a>,
@@ -83,6 +81,7 @@ impl DepthTextureFactory {
     pub fn new(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
+        sample_count: u32,
         label: &str,
     ) -> TextureBundle {
         let size = wgpu::Extent3d {
@@ -99,7 +98,7 @@ impl DepthTextureFactory {
             size,
             mip_level_count: 1,
             view_formats: &[],
-            sample_count: State::get_sample_count(),
+            sample_count: sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT // 3.
@@ -110,14 +109,13 @@ impl DepthTextureFactory {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            // 4.
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual), // 5.
+            compare: None, //Some(wgpu::CompareFunction::LessEqual), // 5.
             ..Default::default()
         });
 

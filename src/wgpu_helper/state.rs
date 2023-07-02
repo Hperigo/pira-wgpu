@@ -17,7 +17,8 @@ pub struct State {
     pub default_white_texture_bundle: TextureBundle,
 
     pub window_size: [f32; 2],
-    //pub default_white_texture_view: wgpu::TextureView,
+
+    sample_count: u32,
 }
 
 pub struct PerFrameData {
@@ -27,7 +28,7 @@ pub struct PerFrameData {
 }
 
 impl State {
-    pub async fn new(window: &winit::window::Window) -> State {
+    pub async fn new(sample_count: u32, window: &winit::window::Window) -> State {
         let instance = wgpu::Instance::default();
         let window_surface = unsafe { instance.create_surface(&window).unwrap() };
 
@@ -67,8 +68,12 @@ impl State {
 
         window_surface.configure(&device, &config);
 
-        let depth_texture =
-            factories::texture::DepthTextureFactory::new(&device, &config, "Default Depth texture");
+        let depth_texture = factories::texture::DepthTextureFactory::new(
+            &device,
+            &config,
+            sample_count,
+            "Default Depth texture",
+        );
 
         let tf = factories::Texture2dFactory::new(2, 2);
         let data: [u8; 16] = [
@@ -94,6 +99,7 @@ impl State {
             },
 
             window_size: [1920.0, 1080.0],
+            sample_count,
         }
     }
 
@@ -107,6 +113,7 @@ impl State {
                 self.depth_texture = Some(factories::texture::DepthTextureFactory::new(
                     &self.device,
                     &self.config,
+                    self.get_sample_count(),
                     "Default Depth texture",
                 ));
             }
@@ -138,7 +145,7 @@ impl State {
         let multisampled_frame_descriptor = wgpu::TextureDescriptor {
             size: multisampled_texture_extent,
             mip_level_count: 1,
-            sample_count: Self::get_sample_count(),
+            sample_count: self.get_sample_count(),
             view_formats: &[TextureFormat::Bgra8UnormSrgb],
             dimension: wgpu::TextureDimension::D2,
             format: self.config.format,
@@ -166,7 +173,7 @@ impl State {
         output_surface.present();
     }
 
-    pub fn get_sample_count() -> u32 {
-        return 4;
+    pub fn get_sample_count(&self) -> u32 {
+        return self.sample_count;
     }
 }

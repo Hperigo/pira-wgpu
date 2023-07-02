@@ -133,7 +133,7 @@ impl<'a> RenderPipelineFactory<'a> {
             },
             depth_stencil: depth_config,
             multisample: wgpu::MultisampleState {
-                count: State::get_sample_count(),
+                count: state.get_sample_count(),
                 ..Default::default()
             },
             multiview: None,
