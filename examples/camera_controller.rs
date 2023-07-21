@@ -22,11 +22,7 @@ impl Application for MyExample {
 
         let pipeline_batch = ShadelessPipeline::new_with_texture(
             state,
-            (
-                wgpu::ShaderStages::FRAGMENT,
-                &state.default_white_texture_bundle.sampler,
-                &state.default_white_texture_bundle.view,
-            ),
+            &state.default_white_texture_bundle,
             PrimitiveTopology::LineStrip,
         );
 

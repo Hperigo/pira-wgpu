@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     geometry::{self, attribute_names, GeometryData},
-    wgpu_helper::{self, factories::RenderPipelineFactory, BindGroupFactory, State},
+    wgpu_helper::{self, factories::RenderPipelineFactory, BindGroupFactory, State, TextureBundle},
 };
 
 use wgpu::{util::DeviceExt, PrimitiveTopology};
@@ -55,7 +55,8 @@ fn vs_main( model : VertexInput ) -> VertexOutput {
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
-    return   textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.color, 1.0);
+    let flipped_uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    return  textureSample(t_diffuse, s_diffuse, flipped_uv) * vec4(in.color, 1.0);
 }
 ";
 
@@ -137,7 +138,8 @@ impl ShadelessPipeline {
         ctx: &wgpu_helper::State,
         // global_uniform_buffer: &wgpu::Buffer,
         // model_uniform_buffer: &wgpu::Buffer,
-        texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
+        // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
+        texture: &TextureBundle,
         topology: PrimitiveTopology,
     ) -> Self {
         let shader_module = ctx
@@ -167,7 +169,11 @@ impl ShadelessPipeline {
         let (bind_group_layout, bind_group) = bind_factory.build(&ctx.device);
 
         let mut texture_bind_group_factory = BindGroupFactory::new();
-        texture_bind_group_factory.add_texture_and_sampler(texture.0, texture.2, texture.1);
+        texture_bind_group_factory.add_texture_and_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &texture.view,
+            &texture.sampler,
+        );
         let (texture_bind_group_layout, texture_bind_group) =
             texture_bind_group_factory.build(&ctx.device);
 

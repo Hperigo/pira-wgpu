@@ -2,7 +2,11 @@ use wgpu_app_lib::{
     cameras::OrbitControls,
     framework::{self, Application},
     geometry::{self, GeometryFactory},
-    pipelines::{self, shadeless, ModelUniform},
+    pipelines::{
+        self,
+        shadeless::{self, ShadelessPipeline},
+        ModelUniform,
+    },
 };
 use winit::dpi::PhysicalSize;
 
@@ -25,34 +29,24 @@ impl Application for MyExample {
     fn init(state: &wgpu_app_lib::wgpu_helper::State) -> Self {
         let batch = pipelines::shadeless::ShadelessPipeline::new_with_texture(
             state,
-            (
-                wgpu::ShaderStages::FRAGMENT,
-                &state.default_white_texture_bundle.sampler,
-                &state.default_white_texture_bundle.view,
-            ),
+            &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
         );
 
         let mut cube = geometry::Cube::new(5.0);
         cube.texture_coords();
-        // cube.vertex_colors();
         let mesh = shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube.geometry);
 
         let mut sphere = geometry::Sphere::new(5.0, 16, 32);
         sphere.texture_coords();
         sphere.normals();
         sphere.vertex_colors_from_normal();
-        // sphere.vertex_colors();
         let axis_mesh =
             shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &sphere.geometry);
 
         let wire_pipeline = pipelines::shadeless::ShadelessPipeline::new_with_texture(
             state,
-            (
-                wgpu::ShaderStages::FRAGMENT,
-                &state.default_white_texture_bundle.sampler,
-                &state.default_white_texture_bundle.view,
-            ),
+            &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::LineList,
         );
 

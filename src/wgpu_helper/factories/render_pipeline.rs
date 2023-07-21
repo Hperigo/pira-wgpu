@@ -118,10 +118,22 @@ impl<'a> RenderPipelineFactory<'a> {
         let frag_state = wgpu::FragmentState {
             module: shader_module,
             entry_point: self.frag_shader_entry,
-            targets: &[Some(swap_chain_format.into())],
+
+            targets: &[Some(wgpu::ColorTargetState {
+                format: swap_chain_format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
         };
 
-        let r_pipeline = wgpu::RenderPipelineDescriptor {
+        let r_pipeline: wgpu::RenderPipelineDescriptor<'_> = wgpu::RenderPipelineDescriptor {
             label: self.label,
             layout: Some(&pipeline_layout),
             vertex: vertex_state,

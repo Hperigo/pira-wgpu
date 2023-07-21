@@ -79,7 +79,7 @@ impl State {
         let data: [u8; 16] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
         ];
-        let (texture, view, sampler) = tf.get_texture_and_sampler(&device, &queue, &data);
+        let texture_bundle = tf.get_texture_and_sampler(&device, &queue, &data);
 
         State {
             instance,
@@ -92,11 +92,7 @@ impl State {
             config,
             depth_texture: Some(depth_texture),
 
-            default_white_texture_bundle: TextureBundle {
-                texture,
-                view,
-                sampler,
-            },
+            default_white_texture_bundle: texture_bundle,
 
             window_size: [1920.0, 1080.0],
             sample_count,
