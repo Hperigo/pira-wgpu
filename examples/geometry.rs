@@ -2,11 +2,7 @@ use wgpu_app_lib::{
     cameras::OrbitControls,
     framework::{self, Application},
     geometry::{self, GeometryFactory},
-    pipelines::{
-        self,
-        shadeless::{self, ShadelessPipeline},
-        ModelUniform,
-    },
+    pipelines::{self, shadeless, ModelUniform},
 };
 use winit::dpi::PhysicalSize;
 

@@ -1,6 +1,6 @@
 use glam::Mat4;
 use wgpu::util::DeviceExt;
-use wgpu::{RenderPass, TextureFormat};
+use wgpu::RenderPass;
 use wgpu_app_lib::framework::Application;
 use wgpu_app_lib::pipelines::{self, shadeless, ModelUniform};
 use wgpu_app_lib::wgpu_helper::factories::texture::{SamplerOptions, Texture2dOptions};
@@ -9,7 +9,7 @@ use wgpu_app_lib::wgpu_helper::State;
 use wgpu_app_lib::{framework, wgpu_helper};
 use winit::dpi::PhysicalSize;
 
-use image::{self, EncodableLayout, ImageFormat};
+use image::EncodableLayout;
 
 struct MyExample {
     clear_color: [f32; 4],
@@ -66,15 +66,6 @@ impl Application for MyExample {
             wgpu::PrimitiveTopology::TriangleList,
         );
 
-        // let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x3 ];
-        // let stride = std::mem::size_of::<Vertex>() as u64;
-        // let mut pipeline_factory = RenderPipelineFactory::new();
-        // pipeline_factory.add_vertex_attributes(&attribs, stride);
-        // pipeline_factory.add_depth_stencil();
-
-        // let pipeline =
-        //     pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);
-
         MyExample {
             clear_color: [0.5, 0.1, 0.1, 1.0],
             buffer: state
@@ -109,6 +100,8 @@ impl Application for MyExample {
         let w = ui
             .window("debug")
             .size([200.0, 300.0], imgui::Condition::FirstUseEver)
+            .collapsed(true, imgui::Condition::FirstUseEver)
+            .position([0.0, 0.0], imgui::Condition::FirstUseEver)
             .begin();
         if let Some(w) = w {
             imgui::Drag::new("clear color")
@@ -135,7 +128,6 @@ impl Application for MyExample {
         render_pass: &mut RenderPass<'rpass>,
     ) {
         let ortho_perspective_matrix = glam::Mat4::IDENTITY;
-
         pipelines::write_global_uniform_buffer(
             ortho_perspective_matrix,
             self.pipeline.global_uniform_buffer.as_ref().unwrap(),
@@ -163,11 +155,13 @@ impl Application for MyExample {
 }
 
 fn main() {
+    let dpi = 2;
+
     framework::run::<MyExample>(
         "simple_app",
         PhysicalSize {
-            width: 460,
-            height: 307,
+            width: 460 * dpi,
+            height: 307 * dpi,
         },
         4,
     );

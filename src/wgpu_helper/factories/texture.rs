@@ -1,4 +1,4 @@
-use wgpu::{util::DeviceExt, Sampler};
+use wgpu::util::DeviceExt;
 
 use crate::wgpu_helper;
 
