@@ -55,8 +55,8 @@ fn vs_main( model : VertexInput ) -> VertexOutput {
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
-    let flipped_uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-    return  textureSample(t_diffuse, s_diffuse, flipped_uv) * vec4(in.color, 1.0);
+    // let flipped_uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    return  textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.color, 1.0);
 }
 ";
 
