@@ -27,6 +27,7 @@ impl Application for MyExample {
             state,
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
+            true,
         );
 
         let mut cube = geometry::Cube::new(5.0);
@@ -44,6 +45,7 @@ impl Application for MyExample {
             state,
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::LineList,
+            true,
         );
 
         Self {

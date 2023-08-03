@@ -85,15 +85,15 @@ impl<'a> RenderPipelineFactory<'a> {
         bind_group_layout: &[&wgpu::BindGroupLayout],
     ) -> wgpu::RenderPipeline {
         let depth_config = if let Some(_) = self.depth_config {
+            self.depth_config.clone()
+        } else {
             Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Less, // 1.
                 stencil: wgpu::StencilState::default(),     // 2.
                 bias: wgpu::DepthBiasState::default(),
             })
-        } else {
-            None
         };
 
         let pipeline_layout_desc = wgpu::PipelineLayoutDescriptor {

@@ -64,6 +64,7 @@ impl Application for MyExample {
             state,
             &texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
+            true,
         );
 
         MyExample {

@@ -24,6 +24,7 @@ impl Application for MyExample {
             state,
             &state.default_white_texture_bundle,
             PrimitiveTopology::LineStrip,
+            true,
         );
 
         let mesh = ShadelessPipeline::get_buffers_from_geometry(state, &axis_geo.geometry);

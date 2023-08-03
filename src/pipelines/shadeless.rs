@@ -141,6 +141,7 @@ impl ShadelessPipeline {
         // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
         texture: &TextureBundle,
         topology: PrimitiveTopology,
+        enable_depth: bool,
     ) -> Self {
         let shader_module = ctx
             .device
@@ -181,7 +182,10 @@ impl ShadelessPipeline {
 
         pipeline_factory.add_vertex_attributes(&attribs, stride);
         // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
-        pipeline_factory.add_depth_stencil();
+
+        if enable_depth {
+            pipeline_factory.add_depth_stencil();
+        }
         pipeline_factory.set_topology(topology);
 
         let pipeline = pipeline_factory.create_render_pipeline(
