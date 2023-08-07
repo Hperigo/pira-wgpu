@@ -1,15 +1,9 @@
 use std::collections::HashMap;
-
-pub mod cube;
-pub use cube::Cube;
+use wgpu::PrimitiveTopology;
 
 pub mod axis;
-pub use axis::Axis;
-
+pub mod cube;
 pub mod sphere;
-pub use sphere::Sphere;
-
-use wgpu::PrimitiveTopology;
 
 pub mod attribute_names {
     pub type AttributeIndex = u32;

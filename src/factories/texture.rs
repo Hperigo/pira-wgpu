@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-use crate::wgpu_helper;
+use crate::state::State;
 
 pub struct Texture2dFactory<'a> {
     sampler_descriptor: wgpu::SamplerDescriptor<'a>,
@@ -83,7 +83,7 @@ impl<'a> Texture2dFactory<'a> {
     }
 
     pub fn new_with_options(
-        state: &wgpu_helper::State,
+        state: &State,
         size: [u32; 2],
         texture_options: Texture2dOptions,
         sampler_options: SamplerOptions,

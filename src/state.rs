@@ -1,7 +1,7 @@
 use wgpu::{self, CommandEncoder, TextureFormat, TextureView};
 use winit::dpi::PhysicalSize;
 
-use super::{factories, TextureBundle};
+use super::factories::texture::{DepthTextureFactory, Texture2dFactory, TextureBundle};
 
 pub struct State {
     pub instance: wgpu::Instance,
@@ -68,14 +68,10 @@ impl State {
 
         window_surface.configure(&device, &config);
 
-        let depth_texture = factories::texture::DepthTextureFactory::new(
-            &device,
-            &config,
-            sample_count,
-            "Default Depth texture",
-        );
+        let depth_texture =
+            DepthTextureFactory::new(&device, &config, sample_count, "Default Depth texture");
 
-        let tf = factories::Texture2dFactory::new(2, 2);
+        let tf = Texture2dFactory::new(2, 2);
         let data: [u8; 16] = [
             255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
         ];
@@ -106,7 +102,7 @@ impl State {
             self.window_surface.configure(&self.device, &self.config);
 
             if self.depth_texture.is_some() {
-                self.depth_texture = Some(factories::texture::DepthTextureFactory::new(
+                self.depth_texture = Some(DepthTextureFactory::new(
                     &self.device,
                     &self.config,
                     self.get_sample_count(),

@@ -2,37 +2,21 @@
 #![allow(unused_variables)]
 
 use wgpu_app_lib::framework::{self, Application};
+use wgpu_app_lib::state::State;
 use winit::dpi::PhysicalSize;
 
 struct MyExample {}
 
 impl Application for MyExample {
-    fn init(state: &wgpu_app_lib::wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         Self {}
     }
 
-    fn event(
-        &mut self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        _event: &winit::event::WindowEvent,
-    ) {
-    }
+    fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(
-        &mut self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        ui: &mut imgui::Ui,
-        frame_count: u64,
-        delta_time: f64,
-    ) {
-    }
+    fn update(&mut self, state: &State, ui: &mut imgui::Ui, frame_count: u64, delta_time: f64) {}
 
-    fn render<'rpass>(
-        &'rpass self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
-    }
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {}
 }
 
 fn main() {

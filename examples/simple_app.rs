@@ -1,11 +1,13 @@
 use std::borrow::Cow;
 
+use wgpu;
 use wgpu::util::DeviceExt;
+
 use wgpu::RenderPass;
+use wgpu_app_lib::factories::{BindGroupFactory, RenderPipelineFactory};
+use wgpu_app_lib::framework;
 use wgpu_app_lib::framework::Application;
-use wgpu_app_lib::wgpu_helper::factories::RenderPipelineFactory;
-use wgpu_app_lib::wgpu_helper::{BindGroupFactory, State};
-use wgpu_app_lib::{framework, wgpu_helper};
+use wgpu_app_lib::state::State;
 use winit::dpi::PhysicalSize;
 
 const SHADER_SRC: &'static str = " 
@@ -51,7 +53,7 @@ struct MyExample {
 }
 
 impl Application for MyExample {
-    fn init(state: &wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         let vertices = vec![
             Vertex {
                 position: [0.0, 0.0, 0.0],
@@ -146,11 +148,7 @@ impl Application for MyExample {
 
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn render<'rpass>(
-        &'rpass self,
-        _state: &wgpu_helper::State,
-        render_pass: &mut RenderPass<'rpass>,
-    ) {
+    fn render<'rpass>(&'rpass self, _state: &State, render_pass: &mut RenderPass<'rpass>) {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

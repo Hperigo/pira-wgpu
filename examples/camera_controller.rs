@@ -1,8 +1,9 @@
 use wgpu::PrimitiveTopology;
+use wgpu_app_lib::state::State;
 use wgpu_app_lib::{
-    cameras::{self, CameraTrait, OrbitControls},
     framework::{self, Application},
-    geometry::{axis, GeometryFactory},
+    helpers::cameras::{self, CameraTrait, OrbitControls},
+    helpers::geometry::{axis, GeometryFactory},
     pipelines::{self, shadeless::GpuMesh, shadeless::ShadelessPipeline},
 };
 use winit::dpi::PhysicalSize;
@@ -15,7 +16,7 @@ struct MyExample {
 }
 
 impl Application for MyExample {
-    fn init(state: &wgpu_app_lib::wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         let mut axis_geo = axis::Axis::new(10.0); //sphere::Sphere::new(10.0, 32, 16);
         axis_geo.texture_coords();
         axis_geo.vertex_colors();
@@ -49,31 +50,17 @@ impl Application for MyExample {
             a: 1.0,
         }
     }
-    fn event(
-        &mut self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        event: &winit::event::WindowEvent,
-    ) {
+    fn event(&mut self, state: &State, event: &winit::event::WindowEvent) {
         self.orbit_control.handle_events(state, event);
     }
 
-    fn update(
-        &mut self,
-        _state: &wgpu_app_lib::wgpu_helper::State,
-        _ui: &mut imgui::Ui,
-        _frame_count: u64,
-        _delta_time: f64,
-    ) {
+    fn update(&mut self, _state: &State, _ui: &mut imgui::Ui, _frame_count: u64, _delta_time: f64) {
         _ui.show_about_window(&mut true);
 
         self.orbit_control.update();
     }
 
-    fn render<'rpass>(
-        &'rpass self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
         render_pass.set_pipeline(&self.pipeline_batch.pipeline);
 
         // SET up mesh self -----

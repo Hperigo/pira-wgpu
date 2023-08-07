@@ -1,4 +1,4 @@
-use crate::wgpu_helper::State;
+use crate::state::State;
 
 pub struct RenderPassFactory<'a> {
     color_attachments: Vec<Option<wgpu::RenderPassColorAttachment<'a>>>,

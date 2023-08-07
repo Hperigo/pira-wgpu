@@ -1,11 +1,13 @@
 use std::borrow::Cow;
 
-use crate::{
-    geometry::{self, attribute_names, GeometryData},
-    wgpu_helper::{self, factories::RenderPipelineFactory, BindGroupFactory, State, TextureBundle},
-};
+use crate::helpers::geometry::{self, attribute_names, GeometryData};
+use crate::state::State;
 
-use wgpu::{util::DeviceExt, PrimitiveTopology};
+use crate::factories::{texture::TextureBundle, BindGroupFactory, RenderPipelineFactory};
+
+use wgpu::PrimitiveTopology;
+
+use wgpu::util::DeviceExt;
 
 use super::{create_global_uniform, create_uniform_buffer, ModelUniform};
 
@@ -82,7 +84,7 @@ pub struct ShadelessPipeline {
 }
 
 impl ShadelessPipeline {
-    pub fn new(ctx: &wgpu_helper::State, topology: PrimitiveTopology) -> Self {
+    pub fn new(ctx: &State, topology: PrimitiveTopology) -> Self {
         let shader_module = ctx
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -135,7 +137,7 @@ impl ShadelessPipeline {
     }
 
     pub fn new_with_texture(
-        ctx: &wgpu_helper::State,
+        ctx: &State,
         // global_uniform_buffer: &wgpu::Buffer,
         // model_uniform_buffer: &wgpu::Buffer,
         // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),

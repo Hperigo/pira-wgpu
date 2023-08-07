@@ -1,12 +1,15 @@
 use glam::Mat4;
+use wgpu;
 use wgpu::util::DeviceExt;
+
 use wgpu::RenderPass;
+use wgpu_app_lib::factories::texture::{SamplerOptions, Texture2dOptions};
+use wgpu_app_lib::factories::{self};
+use wgpu_app_lib::framework;
 use wgpu_app_lib::framework::Application;
 use wgpu_app_lib::pipelines::{self, shadeless, ModelUniform};
-use wgpu_app_lib::wgpu_helper::factories::texture::{SamplerOptions, Texture2dOptions};
-use wgpu_app_lib::wgpu_helper::factories::{self};
-use wgpu_app_lib::wgpu_helper::State;
-use wgpu_app_lib::{framework, wgpu_helper};
+use wgpu_app_lib::state::State;
+
 use winit::dpi::PhysicalSize;
 
 use image::EncodableLayout;
@@ -19,7 +22,7 @@ struct MyExample {
 }
 
 impl Application for MyExample {
-    fn init(state: &wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         let vertices = vec![
             shadeless::Vertex {
                 position: [-0.8, -0.8, 0.0],
@@ -123,11 +126,7 @@ impl Application for MyExample {
 
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn render<'rpass>(
-        &'rpass self,
-        state: &wgpu_helper::State,
-        render_pass: &mut RenderPass<'rpass>,
-    ) {
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut RenderPass<'rpass>) {
         let ortho_perspective_matrix = glam::Mat4::IDENTITY;
         pipelines::write_global_uniform_buffer(
             ortho_perspective_matrix,

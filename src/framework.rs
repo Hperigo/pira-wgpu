@@ -6,7 +6,8 @@ use winit::{
     event_loop::EventLoop,
 };
 
-use crate::wgpu_helper::{self, factories::render_pass::RenderPassFactory, State};
+//use crate::wgpu::{self, factories::render_pass::RenderPassFactory, State};
+use crate::{factories::render_pass::RenderPassFactory, state::State};
 
 pub trait Application: 'static + Sized {
     fn optional_features() -> wgpu::Features {
@@ -32,7 +33,7 @@ pub trait Application: 'static + Sized {
         wgpu::Limits::downlevel_webgl2_defaults() // These downlevel limits will allow the code to run on all possible hardware
     }
 
-    fn init(state: &wgpu_helper::State) -> Self;
+    fn init(state: &State) -> Self;
 
     fn resize(
         &mut self,
@@ -65,7 +66,7 @@ async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_coun
     let window = builder.build(&event_loop).unwrap();
     let size = window.inner_size();
 
-    let state = wgpu_helper::State::new(sample_count, &window).await;
+    let state = State::new(sample_count, &window).await;
 
     Setup {
         window,

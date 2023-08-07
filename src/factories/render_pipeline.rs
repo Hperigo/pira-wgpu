@@ -1,4 +1,4 @@
-use crate::wgpu_helper::State;
+use crate::state::State;
 use wgpu::{PrimitiveTopology, ShaderModule};
 
 pub struct RenderPipelineFactory<'a> {

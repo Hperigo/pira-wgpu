@@ -1,6 +1,6 @@
+use crate::state::State;
 use std::ops::Mul;
 
-use crate::wgpu_helper;
 use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 
 pub trait CameraTrait {
@@ -90,7 +90,7 @@ impl OrbitControls {
         }
     }
 
-    pub fn handle_events(&mut self, state: &wgpu_helper::State, event: &winit::event::WindowEvent) {
+    pub fn handle_events(&mut self, state: &State, event: &winit::event::WindowEvent) {
         use winit::event;
 
         if let event::WindowEvent::Resized(size) = event {
@@ -151,7 +151,7 @@ impl OrbitControls {
     }
 
     // on mouse click or touch drag
-    fn handle_mouse_move(&mut self, state: &wgpu_helper::State, position: glam::Vec2) {
+    fn handle_mouse_move(&mut self, state: &State, position: glam::Vec2) {
         match self.last_mouse_position {
             None => self.last_mouse_position = Some(position), // if last mouse position is None, we need to skip this logic and set the position
             Some(last_mouse_position) => {

@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+use wgpu;
 use wgpu_app_lib::{
     framework::{self, Application},
     pipelines::{self, shadeless, ModelUniform},
-    wgpu_helper,
+    state::State,
 };
 use winit::dpi::PhysicalSize;
 
@@ -29,7 +30,7 @@ struct DrawContext {
 }
 
 impl DrawContext {
-    pub fn new(state: &wgpu_helper::State) -> Self {
+    pub fn new(state: &State) -> Self {
         let window_size = state.window_size;
 
         let pipeline = shadeless::ShadelessPipeline::new_with_texture(
@@ -77,7 +78,7 @@ impl DrawContext {
         };
     }
 
-    pub fn end(&mut self, state: &wgpu_helper::State) {
+    pub fn end(&mut self, state: &State) {
         let data = bytemuck::cast_slice(&self.vertices);
 
         let buffer_size = self.vertex_buffer.size() as usize;
@@ -196,8 +197,13 @@ impl DrawContext {
             let npp = points[i + 1];
             let np = p - npp;
 
-            let a = np.cross(glam::vec3(0.0, 0.0, 1.0)) * 0.1;
+            let a = np.cross(glam::vec3(0.0, 0.0, 1.0)).normalize() * 4.0;
             let b = -a;
+
+            if i == 0 {
+                next_up = p + a;
+                next_down = p + b;
+            }
 
             self.push_color(0.5, 0.3, 0.3);
             self.push_vertex(next_up.x, next_up.y, 0.0);
@@ -208,8 +214,6 @@ impl DrawContext {
             self.push_vertex(npp.x + b.x, npp.y + b.y, 0.0);
             self.push_vertex(next_up.x, next_up.y, 0.0);
             self.push_vertex(npp.x + a.x, npp.y + a.y, 0.0);
-
-            // self.push_vertex(np + b.x, np + b.y, 0.0);
 
             next_up = npp + a;
             next_down = npp + b;
@@ -239,7 +243,7 @@ struct MyExample {
 }
 
 impl Application for MyExample {
-    fn init(state: &wgpu_app_lib::wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         Self {
             im_draw: DrawContext::new(state),
             spacing: 25.0,
@@ -247,12 +251,7 @@ impl Application for MyExample {
         }
     }
 
-    fn event(
-        &mut self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        _event: &winit::event::WindowEvent,
-    ) {
-    }
+    fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
 
     fn clear_color(&self) -> wgpu::Color {
         wgpu::Color {
@@ -263,13 +262,7 @@ impl Application for MyExample {
         }
     }
 
-    fn update(
-        &mut self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        ui: &mut imgui::Ui,
-        frame_count: u64,
-        delta_time: f64,
-    ) {
+    fn update(&mut self, state: &State, ui: &mut imgui::Ui, frame_count: u64, delta_time: f64) {
         let w = ui
             .window("debug")
             .size([200.0, 300.0], imgui::Condition::FirstUseEver)
@@ -311,11 +304,7 @@ impl Application for MyExample {
         self.im_draw.end(state);
     }
 
-    fn render<'rpass>(
-        &'rpass self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
         self.im_draw.draw(render_pass);
     }
 }

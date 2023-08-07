@@ -1,11 +1,12 @@
+use wgpu;
 use wgpu::util::DeviceExt;
 use wgpu::RenderPass;
+use wgpu_app_lib::factories;
+use wgpu_app_lib::factories::texture::{SamplerOptions, Texture2dOptions};
+use wgpu_app_lib::framework;
 use wgpu_app_lib::framework::Application;
 use wgpu_app_lib::pipelines::{self, shadeless, ModelUniform};
-use wgpu_app_lib::wgpu_helper::factories;
-use wgpu_app_lib::wgpu_helper::factories::texture::{SamplerOptions, Texture2dOptions};
-use wgpu_app_lib::wgpu_helper::State;
-use wgpu_app_lib::{framework, wgpu_helper};
+use wgpu_app_lib::state::State;
 
 use winit::dpi::PhysicalSize;
 use {glam::Mat4, glam::Vec4Swizzles};
@@ -38,11 +39,7 @@ impl CameraController2D {
         }
     }
 
-    pub fn handle_events(
-        &mut self,
-        _state: &wgpu_helper::State,
-        event: &winit::event::WindowEvent,
-    ) {
+    pub fn handle_events(&mut self, _state: &State, event: &winit::event::WindowEvent) {
         use winit::event;
 
         if let event::WindowEvent::MouseInput { state, button, .. } = event {
@@ -140,7 +137,7 @@ impl CameraController2D {
         )
     }
 
-    pub fn get_view_projection_matrix(&self, state: &wgpu_helper::State) -> glam::Mat4 {
+    pub fn get_view_projection_matrix(&self, state: &State) -> glam::Mat4 {
         let window_size = state.window_size;
         let ortho_perspective_matrix =
             glam::Mat4::orthographic_lh(0.0, window_size[0], window_size[1], 0.0, -1.0, 1.0);
@@ -161,7 +158,7 @@ struct MyExample {
 }
 
 impl Application for MyExample {
-    fn init(state: &wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         let image = image::open("./assets/rusty.png").unwrap().to_rgba8();
         let rect_size: f32 = 500.0;
 
@@ -289,11 +286,7 @@ impl Application for MyExample {
         self.camera_controller.handle_events(state, event);
     }
 
-    fn render<'rpass>(
-        &'rpass self,
-        state: &wgpu_helper::State,
-        render_pass: &mut RenderPass<'rpass>,
-    ) {
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut RenderPass<'rpass>) {
         let mat = self.camera_controller.get_view_projection_matrix(state);
 
         pipelines::write_global_uniform_buffer(

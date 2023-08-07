@@ -1,8 +1,9 @@
 use wgpu_app_lib::{
-    cameras::OrbitControls,
     framework::{self, Application},
-    geometry::{self, GeometryFactory},
+    helpers::cameras::OrbitControls,
+    helpers::geometry::{cube, sphere, GeometryFactory},
     pipelines::{self, shadeless, ModelUniform},
+    state::State,
 };
 use winit::dpi::PhysicalSize;
 
@@ -22,7 +23,7 @@ struct MyExample {
 }
 
 impl Application for MyExample {
-    fn init(state: &wgpu_app_lib::wgpu_helper::State) -> Self {
+    fn init(state: &State) -> Self {
         let batch = pipelines::shadeless::ShadelessPipeline::new_with_texture(
             state,
             &state.default_white_texture_bundle,
@@ -30,11 +31,11 @@ impl Application for MyExample {
             true,
         );
 
-        let mut cube = geometry::Cube::new(5.0);
+        let mut cube = cube::Cube::new(5.0);
         cube.texture_coords();
         let mesh = shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube.geometry);
 
-        let mut sphere = geometry::Sphere::new(5.0, 16, 32);
+        let mut sphere = sphere::Sphere::new(5.0, 16, 32);
         sphere.texture_coords();
         sphere.normals();
         sphere.vertex_colors_from_normal();
@@ -81,21 +82,11 @@ impl Application for MyExample {
         }
     }
 
-    fn event(
-        &mut self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        event: &winit::event::WindowEvent,
-    ) {
+    fn event(&mut self, state: &State, event: &winit::event::WindowEvent) {
         self.orbit_controls.handle_events(state, event);
     }
 
-    fn update(
-        &mut self,
-        _state: &wgpu_app_lib::wgpu_helper::State,
-        ui: &mut imgui::Ui,
-        _frame_count: u64,
-        _delta_time: f64,
-    ) {
+    fn update(&mut self, _state: &State, ui: &mut imgui::Ui, _frame_count: u64, _delta_time: f64) {
         self.orbit_controls.update();
 
         ui.window("Objects")
@@ -129,11 +120,7 @@ impl Application for MyExample {
             });
     }
 
-    fn render<'rpass>(
-        &'rpass self,
-        state: &wgpu_app_lib::wgpu_helper::State,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
-    ) {
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
         let shadeless::ShadelessPipeline { pipeline, .. } = &self.batch;
 
         render_pass.set_pipeline(&pipeline);
