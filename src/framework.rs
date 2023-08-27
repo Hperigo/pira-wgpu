@@ -149,6 +149,8 @@ fn start<E: Application>(
                 application.update(&state, ui, frame_count, delta_time.as_secs_f64());
                 frame_count += 1;
 
+                state.delta_time = delta_time.as_millis() as f32;
+
                 state.render(|ctx, frame_data| {
                     let mut render_pass_factory = RenderPassFactory::new();
                     render_pass_factory.add_color_atachment(

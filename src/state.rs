@@ -18,6 +18,8 @@ pub struct State {
 
     pub window_size: [f32; 2],
 
+    pub delta_time: f32,
+
     sample_count: u32,
 }
 
@@ -90,6 +92,7 @@ impl State {
 
             default_white_texture_bundle: texture_bundle,
 
+            delta_time: 0.0,
             window_size: [1920.0, 1080.0],
             sample_count,
         }
