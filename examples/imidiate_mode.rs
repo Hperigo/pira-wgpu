@@ -51,8 +51,8 @@ impl DrawContext {
             view_matrix: glam::Mat4::IDENTITY,
             perspective_matrix: glam::Mat4::orthographic_lh(
                 0.0,
-                window_size[0],
-                window_size[1],
+                window_size.width_f32(),
+                window_size.height_f32(),
                 0.0,
                 -1.0,
                 1.0,

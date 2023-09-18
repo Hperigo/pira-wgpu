@@ -31,14 +31,19 @@ impl Application for MyExample {
         let mesh = ShadelessPipeline::get_buffers_from_geometry(state, &axis_geo.geometry);
 
         let size = state.window_size;
-        let mut camera = cameras::PespectiveCamera::new(45.0, size[0] / size[1], 0.001, 10000.0);
+        let mut camera = cameras::PespectiveCamera::new(
+            45.0,
+            size.width_f32() / size.height_f32(),
+            0.001,
+            10000.0,
+        );
         camera.position = glam::vec3(100.0, 70.0, -100.0);
         camera.look_at(glam::Vec3::ZERO);
 
         Self {
             mesh,
             pipeline_batch,
-            orbit_control: OrbitControls::new(size[0] / size[1]),
+            orbit_control: OrbitControls::new(size.aspect_ratio()),
         }
     }
 

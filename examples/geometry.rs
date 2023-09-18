@@ -69,7 +69,7 @@ impl Application for MyExample {
                 },
             ],
 
-            orbit_controls: OrbitControls::new(state.window_size[0] / state.window_size[1]),
+            orbit_controls: OrbitControls::new(state.window_size.aspect_ratio()),
         }
     }
 

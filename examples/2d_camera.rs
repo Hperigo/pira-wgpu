@@ -139,8 +139,14 @@ impl CameraController2D {
 
     pub fn get_view_projection_matrix(&self, state: &State) -> glam::Mat4 {
         let window_size = state.window_size;
-        let ortho_perspective_matrix =
-            glam::Mat4::orthographic_lh(0.0, window_size[0], window_size[1], 0.0, -1.0, 1.0);
+        let ortho_perspective_matrix = glam::Mat4::orthographic_lh(
+            0.0,
+            window_size.width_f32(),
+            window_size.height_f32(),
+            0.0,
+            -1.0,
+            1.0,
+        );
 
         let view_matrix = self.get_camera_matrix();
         return ortho_perspective_matrix * view_matrix.inverse();

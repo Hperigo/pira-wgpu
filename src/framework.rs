@@ -7,7 +7,10 @@ use winit::{
 };
 
 //use crate::wgpu::{self, factories::render_pass::RenderPassFactory, State};
-use crate::{factories::render_pass::RenderPassFactory, state::State};
+use crate::{
+    factories::render_pass::RenderPassFactory,
+    state::{Size, State},
+};
 
 pub trait Application: 'static + Sized {
     fn optional_features() -> wgpu::Features {
@@ -66,7 +69,16 @@ async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_coun
     let window = builder.build(&event_loop).unwrap();
     let size = window.inner_size();
 
-    let state = State::new(sample_count, &window).await;
+    let instance = wgpu::Instance::default();
+    let window_surface = unsafe { instance.create_surface(&window).unwrap() };
+
+    let state = State::new(
+        sample_count,
+        instance,
+        window_surface,
+        Size::new(size.width, size.height),
+    )
+    .await;
 
     Setup {
         window,
@@ -191,7 +203,7 @@ fn start<E: Application>(
                 }
 
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
-                    state.window_size = [physical_size.width as f32, physical_size.height as f32];
+                    state.window_size = Size::new(physical_size.width, physical_size.height);
                     state.resize(*physical_size);
                 }
 

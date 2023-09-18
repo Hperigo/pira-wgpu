@@ -175,13 +175,16 @@ impl OrbitControls {
                 if self.is_middle_mouse_dragging {
                     let delta = position - last_mouse_position; // * self.sensitivity;
                     let length = delta.length();
-
+                    let window_size = [
+                        state.window_size.width as f32,
+                        state.window_size.height as f32,
+                    ];
                     if length < 0.01 {
                         return;
                     }
-                    let aspect_ratio = state.window_size[0] / state.window_size[1];
-                    let delta_normalized =
-                        delta / glam::vec2(state.window_size[0], state.window_size[1]);
+
+                    let aspect_ratio = window_size[0] / window_size[1];
+                    let delta_normalized = delta / glam::vec2(window_size[0], window_size[1]);
 
                     let ctd = self.zoom * 1.3; // not sure how but this number helps the camera lock on target.
                     let image_plane_height = 2.0 * ctd * (self.camera.fov.to_radians() * 0.5).tan();

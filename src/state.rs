@@ -3,6 +3,34 @@ use winit::dpi::PhysicalSize;
 
 use super::factories::texture::{DepthTextureFactory, Texture2dFactory, TextureBundle};
 
+#[derive(Copy, Clone)]
+pub struct Size {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Size {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+
+    pub fn width_f32(&self) -> f32 {
+        self.width as f32
+    }
+
+    pub fn height_f32(&self) -> f32 {
+        self.height as f32
+    }
+
+    pub fn into_array(&self) -> [f32; 2] {
+        [self.width_f32(), self.height_f32()]
+    }
+
+    pub fn aspect_ratio(&self) -> f32 {
+        self.width_f32() / self.height_f32()
+    }
+}
+
 pub struct State {
     pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
@@ -16,11 +44,11 @@ pub struct State {
 
     pub default_white_texture_bundle: TextureBundle,
 
-    pub window_size: [f32; 2],
+    pub window_size: Size,
 
     pub delta_time: f32,
 
-    sample_count: u32,
+    pub sample_count: u32,
 }
 
 pub struct PerFrameData {
@@ -30,10 +58,12 @@ pub struct PerFrameData {
 }
 
 impl State {
-    pub async fn new(sample_count: u32, window: &winit::window::Window) -> State {
-        let instance = wgpu::Instance::default();
-        let window_surface = unsafe { instance.create_surface(&window).unwrap() };
-
+    pub async fn new(
+        sample_count: u32,
+        instance: wgpu::Instance,
+        window_surface: wgpu::Surface,
+        window_size: Size,
+    ) -> State {
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -55,17 +85,15 @@ impl State {
             .await
             .unwrap();
 
-        let window_surface = unsafe { instance.create_surface(&window).unwrap() };
-
-        let formats = window_surface.get_capabilities(&adapter).formats;
+        let surface_caps = window_surface.get_capabilities(&adapter);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: formats[0],
+            format: surface_caps.formats[0],
             view_formats: Vec::new(),
-            width: 1920,
-            height: 1080,
+            width: window_size.width,
+            height: window_size.height,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
-            present_mode: wgpu::PresentMode::Immediate,
+            present_mode: surface_caps.present_modes[0],
         };
 
         window_surface.configure(&device, &config);
@@ -93,7 +121,7 @@ impl State {
             default_white_texture_bundle: texture_bundle,
 
             delta_time: 0.0,
-            window_size: [1920.0, 1080.0],
+            window_size,
             sample_count,
         }
     }
