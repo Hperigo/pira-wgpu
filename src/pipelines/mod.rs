@@ -1,7 +1,7 @@
 pub mod pbr;
 pub mod shadeless;
 
-#[repr(C, align(256))]
+#[repr(C, align(16))]
 #[derive(Clone, Copy)]
 pub struct ViewUniform {
     pub view_matrix: glam::Mat4,
@@ -35,7 +35,7 @@ pub fn write_global_uniform_buffer(
     });
 }
 
-#[repr(C, align(256))]
+#[repr(C, align(16))]
 #[derive(Clone, Copy)]
 pub struct ModelUniform {
     pub model_matrix: glam::Mat4,

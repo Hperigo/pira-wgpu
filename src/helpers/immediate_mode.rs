@@ -1,13 +1,8 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
-use wgpu;
-use wgpu_app_lib::{
-    framework::{self, Application},
+use crate::{
     pipelines::{self, shadeless, ModelUniform},
     state::State,
 };
-use winit::dpi::PhysicalSize;
+use wgpu;
 
 #[derive(Debug, Clone, Copy)]
 struct DrawCommand {
@@ -15,7 +10,7 @@ struct DrawCommand {
     end_vertex: usize,
 }
 
-struct DrawContext {
+pub struct DrawContext {
     pipeline: shadeless::ShadelessPipeline,
     vertex_buffer: wgpu::Buffer,
 
@@ -97,7 +92,7 @@ impl DrawContext {
         state.queue.write_buffer(&self.vertex_buffer, 0, data);
 
         pipelines::write_global_uniform_buffer(
-            self.perspective_matrix,
+            self.perspective_matrix * self.view_matrix.inverse(),
             self.pipeline.global_uniform_buffer.as_ref().unwrap(),
             &state.queue,
         );
@@ -184,33 +179,41 @@ impl DrawContext {
         self.end_shape();
     }
 
-    pub fn push_line(&mut self, points: &[glam::Vec3]) {
+    pub fn push_line(&mut self, points: &[glam::Vec2], stroke_size: f32) {
+        if points.len() < 2 {
+            return;
+        }
+
         self.begin_shape();
 
         // let mut prevPoint = points[0];
 
         let mut next_up = glam::Vec3::ZERO;
         let mut next_down = glam::Vec3::ZERO;
-
+        // println!("----");
         for i in 0..points.len() - 1 {
-            let p = points[i];
-            let npp = points[i + 1];
-            let np = p - npp;
+            let p = glam::Vec3::from((points[i], 0.0));
+            let npp = glam::Vec3::from((points[i + 1], 0.0));
+            let np = (p - npp).normalize();
 
-            let a = np.cross(glam::vec3(0.0, 0.0, 1.0)).normalize() * 4.0;
+            let a = np.cross(glam::vec3(0.0, 0.0, 1.0)) * stroke_size;
             let b = -a;
+            // println!("point: {} == {} == {}", p, npp, np);
+            // println!("a: {}", a);
+            // if a.y < 0.0 {}
 
             if i == 0 {
                 next_up = p + a;
                 next_down = p + b;
             }
 
-            self.push_color(0.5, 0.3, 0.3);
+            // self.push_color(color, color, color);
+            // self.push_color(0.5 * color, 0.3, 0.3);
             self.push_vertex(next_up.x, next_up.y, 0.0);
             self.push_vertex(npp.x + b.x, npp.y + b.y, 0.0);
             self.push_vertex(next_down.x, next_down.y, 0.0);
 
-            self.push_color(0.4, 0.2, 0.8);
+            // self.push_color(0.4, 0.2, 0.8 * color);
             self.push_vertex(npp.x + b.x, npp.y + b.y, 0.0);
             self.push_vertex(next_up.x, next_up.y, 0.0);
             self.push_vertex(npp.x + a.x, npp.y + a.y, 0.0);
@@ -221,7 +224,7 @@ impl DrawContext {
         self.end_shape();
     }
 
-    fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
+    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
         render_pass.set_bind_group(0, &self.pipeline.bind_group, &[0, 0 as u32]);
         render_pass.set_bind_group(1, self.pipeline.texture_bind_group.as_ref().unwrap(), &[]);
         render_pass.set_pipeline(&self.pipeline.pipeline);
@@ -233,89 +236,4 @@ impl DrawContext {
             render_pass.draw(start..end, 0..1);
         }
     }
-}
-
-struct MyExample {
-    im_draw: DrawContext,
-
-    spacing: f32,
-    freq: f32,
-}
-
-impl Application for MyExample {
-    fn init(state: &State) -> Self {
-        Self {
-            im_draw: DrawContext::new(state),
-            spacing: 25.0,
-            freq: 0.01,
-        }
-    }
-
-    fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
-
-    fn clear_color(&self) -> wgpu::Color {
-        wgpu::Color {
-            r: 0.3,
-            g: 0.2,
-            b: 0.4,
-            a: 1.0,
-        }
-    }
-
-    fn update(&mut self, state: &State, ui: &mut imgui::Ui, frame_count: u64, delta_time: f64) {
-        let w = ui
-            .window("debug")
-            .size([200.0, 300.0], imgui::Condition::FirstUseEver)
-            .collapsed(false, imgui::Condition::FirstUseEver)
-            .position([0.0, 500.0], imgui::Condition::FirstUseEver)
-            .begin();
-        if let Some(w) = w {
-            imgui::Drag::new("spacing")
-                .speed(0.1)
-                .build(ui, &mut self.spacing);
-            imgui::Drag::new("freq")
-                .speed(0.01)
-                .build(ui, &mut self.freq);
-            w.end();
-        }
-
-        self.im_draw.start();
-
-        self.im_draw.push_color(1.0, 0.0, 0.0);
-        self.im_draw.push_rect(100.0, 100.0, 200.0, 100.0);
-
-        self.im_draw.push_color(1.0, 1.0, 0.0);
-        self.im_draw.push_rect(100.0, 350.0, 200.0, 100.0);
-
-        self.im_draw.push_color(0.3, 0.4, 0.2);
-
-        let mut points = Vec::new();
-        for i in 0..1000 {
-            let x = (i as f32) * self.spacing;
-            let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
-
-            points.push(glam::vec3(x, y + 100.0, 0.0));
-
-            self.im_draw.push_circle(x, y, 10.0);
-        }
-
-        self.im_draw.push_line(&points);
-
-        self.im_draw.end(state);
-    }
-
-    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        self.im_draw.draw(render_pass);
-    }
-}
-
-fn main() {
-    framework::run::<MyExample>(
-        "imidiate mode",
-        PhysicalSize {
-            width: 1920 * 2,
-            height: 1080 * 2,
-        },
-        4,
-    );
 }

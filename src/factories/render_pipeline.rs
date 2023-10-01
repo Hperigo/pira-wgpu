@@ -10,6 +10,8 @@ pub struct RenderPipelineFactory<'a> {
 
     topology: PrimitiveTopology,
 
+    cull_mode: Option<wgpu::Face>,
+
     label: Option<&'static str>,
 }
 
@@ -22,12 +24,18 @@ impl<'a> RenderPipelineFactory<'a> {
             vert_shader_entry: Self::default_vert_entry_point(),
             frag_shader_entry: Self::default_frag_entry_point(),
             topology: PrimitiveTopology::TriangleList,
+
+            cull_mode: None,
             label: Some("Pipeline from helper"),
         }
     }
 
     pub fn set_label(&mut self, label: &'static str) {
         self.label = Some(label);
+    }
+
+    pub fn set_cull_mode(&mut self, mode: Option<wgpu::Face>) {
+        self.cull_mode = mode;
     }
 
     pub fn add_vertex_attributes(
@@ -139,7 +147,7 @@ impl<'a> RenderPipelineFactory<'a> {
             vertex: vertex_state,
             fragment: Some(frag_state),
             primitive: wgpu::PrimitiveState {
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: self.cull_mode,
                 topology: self.topology,
                 ..Default::default()
             },

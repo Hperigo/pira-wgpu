@@ -62,7 +62,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 }
 ";
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
