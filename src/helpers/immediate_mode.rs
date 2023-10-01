@@ -186,40 +186,33 @@ impl DrawContext {
 
         self.begin_shape();
 
-        // let mut prevPoint = points[0];
-
         let mut next_up = glam::Vec3::ZERO;
         let mut next_down = glam::Vec3::ZERO;
-        // println!("----");
-        for i in 0..points.len() - 1 {
-            let p = glam::Vec3::from((points[i], 0.0));
-            let npp = glam::Vec3::from((points[i + 1], 0.0));
-            let np = (p - npp).normalize();
 
-            let a = np.cross(glam::vec3(0.0, 0.0, 1.0)) * stroke_size;
+        for i in 0..points.len() - 1 {
+            //TODO: can use a smarter algo here with vec2
+            let point = glam::Vec3::from((points[i], 0.0));
+            let next_point = glam::Vec3::from((points[i + 1], 0.0));
+            let point_normal = (point - next_point).normalize();
+
+            let a = point_normal.cross(glam::vec3(0.0, 0.0, 1.0)) * stroke_size;
             let b = -a;
-            // println!("point: {} == {} == {}", p, npp, np);
-            // println!("a: {}", a);
-            // if a.y < 0.0 {}
 
             if i == 0 {
-                next_up = p + a;
-                next_down = p + b;
+                next_up = point_normal + a;
+                next_down = point_normal + b;
             }
 
-            // self.push_color(color, color, color);
-            // self.push_color(0.5 * color, 0.3, 0.3);
             self.push_vertex(next_up.x, next_up.y, 0.0);
-            self.push_vertex(npp.x + b.x, npp.y + b.y, 0.0);
+            self.push_vertex(next_point.x + b.x, next_point.y + b.y, 0.0);
             self.push_vertex(next_down.x, next_down.y, 0.0);
 
-            // self.push_color(0.4, 0.2, 0.8 * color);
-            self.push_vertex(npp.x + b.x, npp.y + b.y, 0.0);
+            self.push_vertex(next_point.x + b.x, next_point.y + b.y, 0.0);
             self.push_vertex(next_up.x, next_up.y, 0.0);
-            self.push_vertex(npp.x + a.x, npp.y + a.y, 0.0);
+            self.push_vertex(next_point.x + a.x, next_point.y + a.y, 0.0);
 
-            next_up = npp + a;
-            next_down = npp + b;
+            next_up = next_point + a;
+            next_down = next_point + b;
         }
         self.end_shape();
     }
