@@ -16,13 +16,14 @@ const SHADER_SRC: &'static str = "
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) color: vec3<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) pad : vec3<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) color: vec3<f32>,
+    @location(1) color: vec4<f32>,
 };
 
 struct CameraUniform {
@@ -58,7 +59,7 @@ fn vs_main( model : VertexInput ) -> VertexOutput {
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     // let flipped_uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-    return  textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.color, 1.0);
+    return  textureSample(t_diffuse, s_diffuse, in.uv) * in.color;
 }
 ";
 
@@ -67,7 +68,19 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 pub struct Vertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
-    pub color: [f32; 3],
+    pub color: [f32; 4],
+    _pad: [f32; 3],
+}
+
+impl Vertex {
+    pub fn new(position: [f32; 3], uv: [f32; 2], color: [f32; 4]) -> Self {
+        Vertex {
+            position,
+            uv,
+            color,
+            _pad: [0.0; 3],
+        }
+    }
 }
 
 pub struct ShadelessPipeline {
@@ -92,7 +105,7 @@ impl ShadelessPipeline {
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(SHADER_SRC)),
             });
 
-        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x3 ];
+        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x4, 3 => Float32x3 ];
         let stride = std::mem::size_of::<Vertex>() as u64;
 
         let global_uniform_buffer = create_global_uniform(&ctx.device);
@@ -152,7 +165,7 @@ impl ShadelessPipeline {
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(SHADER_SRC)),
             });
 
-        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x3 ];
+        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x4, 3 => Float32x3 ];
         let stride = std::mem::size_of::<Vertex>() as u64;
 
         let global_uniform_buffer = create_global_uniform(&ctx.device);
@@ -224,11 +237,7 @@ impl ShadelessPipeline {
                 position_attrib[i + 2],
             ];
 
-            vertices.push(Vertex {
-                position,
-                uv: [0.0, 0.0],
-                color: [1.0, 1.0, 1.0],
-            });
+            vertices.push(Vertex::new(position, [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
         }
 
         // UVS -------
@@ -246,7 +255,12 @@ impl ShadelessPipeline {
         if let Some(vcolor) = vcolors_option {
             let mut index = 0;
             for i in 0..vertices.len() {
-                vertices[i].color = [vcolor[index], vcolor[index + 1], vcolor[index + 2]];
+                vertices[i].color = [
+                    vcolor[index],
+                    vcolor[index + 1],
+                    vcolor[index + 2],
+                    vcolor[index + 3],
+                ];
 
                 println!("Color: {:?}", vertices[i]);
                 index += 3;

@@ -24,26 +24,10 @@ struct MyExample {
 impl Application for MyExample {
     fn init(state: &State) -> Self {
         let vertices = vec![
-            shadeless::Vertex {
-                position: [-0.8, -0.8, 0.0],
-                uv: [0.0, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            shadeless::Vertex {
-                position: [0.8, 0.8, 0.0],
-                uv: [1.0, 1.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            shadeless::Vertex {
-                position: [0.8, -0.8, 0.0],
-                uv: [1.0, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-            shadeless::Vertex {
-                position: [-0.8, 0.8, 0.0],
-                uv: [0.0, 1.0],
-                color: [1.0, 1.0, 1.0],
-            },
+            shadeless::Vertex::new([-0.8, -0.8, 0.0], [0.0, 0.0], [1.0, 0.0, 0.0, 1.0]),
+            shadeless::Vertex::new([0.8, 0.8, 0.0], [1.0, 1.0], [0.0, 1.0, 0.0, 1.0]),
+            shadeless::Vertex::new([0.8, -0.8, 0.0], [1.0, 0.0], [0.0, 0.0, 1.0, 1.0]),
+            shadeless::Vertex::new([-0.8, 0.8, 0.0], [0.0, 1.0], [1.0, 1.0, 1.0, 1.0]),
         ];
 
         let mut indices: [u16; 6] = [0, 1, 2, 0, 3, 1];

@@ -18,7 +18,7 @@ pub struct DrawContext {
     vertices: Vec<shadeless::Vertex>,
 
     last_draw_command: DrawCommand,
-    last_color: [f32; 3],
+    last_color: [f32; 4],
 
     pub perspective_matrix: glam::Mat4,
     pub view_matrix: glam::Mat4,
@@ -42,7 +42,7 @@ impl DrawContext {
                 start_vertex: 0,
                 end_vertex: 0,
             },
-            last_color: *glam::Vec3::ONE.as_ref(),
+            last_color: *glam::Vec4::ONE.as_ref(),
             view_matrix: glam::Mat4::IDENTITY,
             perspective_matrix: glam::Mat4::orthographic_lh(
                 0.0,
@@ -124,17 +124,20 @@ impl DrawContext {
         self.last_color[1] = g;
         self.last_color[2] = b;
     }
+    pub fn push_color_alpha(&mut self, r: f32, g: f32, b: f32, a: f32) {
+        self.last_color[0] = r;
+        self.last_color[1] = g;
+        self.last_color[2] = b;
+        self.last_color[3] = a;
+    }
 
-    pub fn push_color_slice(&mut self, color: &[f32; 3]) {
+    pub fn push_color_slice(&mut self, color: &[f32; 4]) {
         self.last_color = *color;
     }
 
     pub fn push_vertex_slice(&mut self, pos: &[f32; 3]) {
-        self.vertices.push(shadeless::Vertex {
-            position: *pos,
-            uv: [0.0, 0.0],
-            color: self.last_color,
-        })
+        self.vertices
+            .push(shadeless::Vertex::new(*pos, [0.0, 0.0], self.last_color))
     }
     pub fn push_vertex(&mut self, x: f32, y: f32, z: f32) {
         self.push_vertex_slice(&[x, y, z]);

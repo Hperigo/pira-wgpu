@@ -171,26 +171,26 @@ impl Application for MyExample {
         let aspect_ratio = image.height() as f32 / image.width() as f32;
 
         let vertices = vec![
-            shadeless::Vertex {
-                position: [-rect_size, -rect_size * aspect_ratio, -0.1],
-                uv: [0.0, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            shadeless::Vertex {
-                position: [rect_size, rect_size * aspect_ratio, -0.1],
-                uv: [1.0, 1.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            shadeless::Vertex {
-                position: [rect_size, -rect_size * aspect_ratio, -0.1],
-                uv: [1.0, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-            shadeless::Vertex {
-                position: [-rect_size, rect_size * aspect_ratio, -0.1],
-                uv: [0.0, 1.0],
-                color: [1.0, 1.0, 1.0],
-            },
+            shadeless::Vertex::new(
+                [-rect_size, -rect_size * aspect_ratio, -0.1],
+                [0.0, 0.0],
+                [1.0, 0.0, 0.0, 1.0],
+            ),
+            shadeless::Vertex::new(
+                [rect_size, rect_size * aspect_ratio, -0.1],
+                [1.0, 1.0],
+                [0.0, 1.0, 0.0, 1.0],
+            ),
+            shadeless::Vertex::new(
+                [rect_size, -rect_size * aspect_ratio, -0.1],
+                [1.0, 0.0],
+                [0.0, 0.0, 1.0, 1.0],
+            ),
+            shadeless::Vertex::new(
+                [-rect_size, rect_size * aspect_ratio, -0.1],
+                [0.0, 1.0],
+                [1.0, 1.0, 1.0, 1.0],
+            ),
         ];
 
         let indices: [u16; 6] = [0, 1, 2, 0, 3, 1];
