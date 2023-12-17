@@ -17,6 +17,10 @@ image = { version = "0.24", default-features = false, features = [
 glam = { version = "*", features = ["bytemuck"] }
 rand = { version = "*" }
 
+egui = { version = "0.24" }
+egui-winit = { version = "0.24" }
+egui-wgpu = { version = "0.24" }
+
 # imgui = "0.11"
 # imgui-winit-support = { version = "0.11" }
 # imgui-wgpu = { git = "https://github.com/Calcoph/imgui-wgpu-rs.git" }
