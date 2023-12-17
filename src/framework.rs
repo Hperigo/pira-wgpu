@@ -1,7 +1,8 @@
-use std::time::Instant;
+use std::{os::macos::raw, time::Instant};
 
 use egui::{FontDefinitions, ViewportId};
 use egui_wgpu::renderer::ScreenDescriptor;
+use wgpu::RenderPass;
 use winit::{
     dpi::PhysicalSize,
     event::{self, WindowEvent},
@@ -10,7 +11,7 @@ use winit::{
 
 //use crate::wgpu::{self, factories::render_pass::RenderPassFactory, State};
 use crate::{
-    factories::render_pass::RenderPassFactory,
+    factories::render_pass::{self, RenderPassFactory},
     state::{PerFrameData, Size, State},
 };
 
@@ -48,11 +49,114 @@ pub trait Application: 'static + Sized {
     ) {
     }
 
+    fn on_gui(&mut self, _egui_ctx: &mut EguiLayer) {}
+
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
     fn update(&mut self, state: &State, frame_count: u64, delta_time: f64);
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>);
+}
+
+pub trait UILayer {
+    fn setup(window: &winit::window::Window, device: &wgpu::Device) -> Self
+    where
+        Self: Sized;
+    fn event(&mut self, _event: &winit::event::WindowEvent) {}
+    fn begin_gui(&mut self);
+    fn end_gui(
+        &mut self,
+        window: &winit::window::Window,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+    );
+
+    fn render<'rpass>(
+        &'rpass self,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+        screen_descriptor: &ScreenDescriptor,
+    );
+}
+
+pub struct EguiLayer {
+    pub ctx: egui::Context,
+    winit_state: egui_winit::State,
+    renderer: egui_wgpu::Renderer,
+
+    primitives: Vec<egui::ClippedPrimitive>,
+}
+
+impl UILayer for EguiLayer {
+    fn setup(window: &winit::window::Window, device: &wgpu::Device) -> Self {
+        let ctx = egui::Context::default();
+        ctx.set_fonts(FontDefinitions::default());
+        let winit_state = egui_winit::State::new(ViewportId::ROOT, &window, Some(2.0), Some(1024));
+
+        let renderer = egui_wgpu::renderer::Renderer::new(
+            device,
+            wgpu::TextureFormat::Bgra8UnormSrgb,
+            Some(wgpu::TextureFormat::Depth24Plus),
+            4,
+        );
+
+        Self {
+            ctx,
+            winit_state,
+            renderer,
+            primitives: Vec::new(),
+        }
+    }
+    fn event(&mut self, event: &winit::event::WindowEvent) {
+        let _ = self.winit_state.on_window_event(&self.ctx, event);
+    }
+    fn begin_gui(&mut self) {
+        let raw_input = self.winit_state.egui_input_mut().take();
+        self.ctx.begin_frame(raw_input);
+    }
+
+    fn end_gui(
+        &mut self,
+        window: &winit::window::Window,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+    ) {
+        let output = self.ctx.end_frame();
+
+        self.winit_state
+            .handle_platform_output(&window, &self.ctx, output.platform_output);
+
+        let screen_descriptor = ScreenDescriptor {
+            size_in_pixels: [window.inner_size().width, window.inner_size().height],
+            pixels_per_point: 2.0,
+        };
+
+        let primitives = self.ctx.tessellate(output.shapes, output.pixels_per_point);
+
+        for (id, image_delta) in &output.textures_delta.set {
+            self.renderer
+                .update_texture(device, queue, *id, image_delta);
+        }
+
+        for id in output.textures_delta.free {
+            self.renderer.free_texture(&id);
+        }
+
+        self.renderer
+            .update_buffers(device, queue, encoder, &primitives, &screen_descriptor);
+
+        self.primitives = primitives;
+    }
+
+    fn render<'rpass>(
+        &'rpass self,
+        render_pass: &mut wgpu::RenderPass<'rpass>,
+        screen_descriptor: &ScreenDescriptor,
+    ) {
+        self.renderer
+            .render(render_pass, &self.primitives, screen_descriptor)
+    }
 }
 
 struct Setup {
@@ -65,12 +169,10 @@ struct Setup {
 async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_count: u32) -> Setup {
     let event_loop = EventLoop::new();
     let mut builder = winit::window::WindowBuilder::new();
-    println!("1. Size: {:?}", size);
     builder = builder.with_title(title).with_inner_size(size);
 
     let window = builder.build(&event_loop).unwrap();
     let size = window.inner_size();
-    println!("2. Size: {:?}", size);
     let instance = wgpu::Instance::default();
     let window_surface = unsafe { instance.create_surface(&window).unwrap() };
 
@@ -114,17 +216,19 @@ fn start<E: Application>(
     // INIT APPLICATION
     let mut application = E::init(&state);
 
-    let egui_ctx = egui::Context::default();
-    egui_ctx.set_fonts(FontDefinitions::default());
-    let mut egui_winit_ctx =
-        egui_winit::State::new(ViewportId::ROOT, &window, Some(2.0), Some(1024));
+    let mut ui = EguiLayer::setup(&window, &state.device);
 
-    let mut egui_renderer = egui_wgpu::renderer::Renderer::new(
-        &state.device,
-        wgpu::TextureFormat::Bgra8UnormSrgb,
-        Some(wgpu::TextureFormat::Depth24Plus),
-        4,
-    );
+    // let egui_ctx = egui::Context::default();
+    // egui_ctx.set_fonts(FontDefinitions::default());
+    // let mut egui_winit_ctx =
+    //     egui_winit::State::new(ViewportId::ROOT, &window, Some(2.0), Some(1024));
+
+    // let mut egui_renderer = egui_wgpu::renderer::Renderer::new(
+    //     &state.device,
+    //     wgpu::TextureFormat::Bgra8UnormSrgb,
+    //     Some(wgpu::TextureFormat::Depth24Plus),
+    //     4,
+    // );
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -138,33 +242,25 @@ fn start<E: Application>(
 
                 state.delta_time = delta_time.as_millis() as f32;
 
-                let raw_input = egui_winit_ctx.egui_input_mut().take();
+                // let raw_input = egui_winit_ctx.egui_input_mut().take();
 
-                egui_ctx.begin_frame(raw_input);
-                // egui::SidePanel::default().show(&egui_ctx, |ui| {
-                //     ui.label("hey there");
+                // egui_ctx.begin_frame(raw_input);
+
+                // egui::Window::new("Hey there").show(&egui_ctx, |ui| {
+                //     ui.label("text");
                 // });
 
-                egui::Window::new("Hey there").show(&egui_ctx, |ui| {
-                    ui.label("text");
-                });
+                // let output = egui_ctx.end_frame();
+                // println!("Run!");
+                // egui_winit_ctx.handle_platform_output(&window, &egui_ctx, output.platform_output);
 
-                let output = egui_ctx.end_frame();
-                println!("Run!");
-                // let output = egui_ctx.run(raw_input, |ui| {
-                //     egui::CentralPanel::default().show(&ui, |ui| {
-                //         ui.label("Hi there");
-                //     });
-                // });
-                egui_winit_ctx.handle_platform_output(&window, &egui_ctx, output.platform_output);
+                // println!("Tessellate!");
+                // let screen_descriptor = ScreenDescriptor {
+                //     size_in_pixels: [window.inner_size().width, window.inner_size().height],
+                //     pixels_per_point: 2.0,
+                // };
 
-                println!("Tessellate!");
-                let screen_descriptor = ScreenDescriptor {
-                    size_in_pixels: [window.inner_size().width, window.inner_size().height],
-                    pixels_per_point: 2.0,
-                };
-
-                let primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
+                // let primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
 
                 state.render(|ctx, frame_data| {
                     let mut render_pass_factory = RenderPassFactory::new();
@@ -175,21 +271,11 @@ fn start<E: Application>(
                         multisampled_view,
                     } = frame_data;
 
-                    for (id, image_delta) in &output.textures_delta.set {
-                        egui_renderer.update_texture(&state.device, &state.queue, *id, image_delta);
-                    }
+                    ui.begin_gui();
 
-                    for id in output.textures_delta.free {
-                        egui_renderer.free_texture(&id);
-                    }
+                    application.on_gui(&mut ui);
 
-                    egui_renderer.update_buffers(
-                        &state.device,
-                        &state.queue,
-                        encoder,
-                        &primitives,
-                        &screen_descriptor,
-                    );
+                    ui.end_gui(&window, &state.device, &state.queue, encoder);
 
                     {
                         render_pass_factory.add_color_atachment(
@@ -202,7 +288,11 @@ fn start<E: Application>(
 
                         application.render(&state, &mut render_pass);
 
-                        egui_renderer.render(&mut render_pass, &primitives, &screen_descriptor)
+                        let screen_descriptor = ScreenDescriptor {
+                            size_in_pixels: [window.inner_size().width, window.inner_size().height],
+                            pixels_per_point: 2.0,
+                        };
+                        ui.render(&mut render_pass, &screen_descriptor)
                     }
                 });
             }
@@ -214,7 +304,9 @@ fn start<E: Application>(
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
 
-                egui_winit_ctx.on_window_event(&egui_ctx, event);
+                // egui_winit_ctx.on_window_event(&egui_ctx, event);
+
+                ui.event(event);
 
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
                     // state.window_size = Size::new(physical_size.width, physical_size.height);

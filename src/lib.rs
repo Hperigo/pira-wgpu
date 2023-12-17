@@ -17,4 +17,6 @@ pub use glam;
 pub use image;
 pub use wgpu;
 
+pub use egui;
+
 pub use helpers::immediate_mode;

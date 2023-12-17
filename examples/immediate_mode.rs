@@ -1,10 +1,12 @@
 use wgpu_app_lib::{
-    framework::{self, Application},
+    framework::{self, Application, UILayer},
     state::State,
 };
 use winit::dpi::PhysicalSize;
 
 use wgpu_app_lib::immediate_mode::DrawContext;
+
+use wgpu_app_lib::framework::EguiLayer;
 
 struct MyExample {
     im_draw: wgpu_app_lib::immediate_mode::DrawContext,
@@ -33,23 +35,16 @@ impl Application for MyExample {
         }
     }
 
-    fn update(&mut self, state: &State, frame_count: u64, _delta_time: f64) {
-        // let w = ui
-        //     .window("debug")
-        //     .size([200.0, 300.0], imgui::Condition::FirstUseEver)
-        //     .collapsed(false, imgui::Condition::FirstUseEver)
-        //     .position([0.0, 500.0], imgui::Condition::FirstUseEver)
-        //     .begin();
-        // if let Some(w) = w {
-        //     imgui::Drag::new("spacing")
-        //         .speed(0.1)
-        //         .build(ui, &mut self.spacing);
-        //     imgui::Drag::new("freq")
-        //         .speed(0.01)
-        //         .build(ui, &mut self.freq);
-        //     w.end();
-        // }
+    fn on_gui(&mut self, ui_layer: &mut EguiLayer) {
+        egui::SidePanel::new(egui::panel::Side::Left, egui::Id::new("Side pannel")).show(
+            &ui_layer.ctx,
+            |ui| {
+                ui.label("text");
+            },
+        );
+    }
 
+    fn update(&mut self, state: &State, frame_count: u64, _delta_time: f64) {
         self.im_draw.start();
 
         self.im_draw.push_color_alpha(0.1, 0.2, 0.3, 0.5);
