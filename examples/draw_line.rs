@@ -108,12 +108,12 @@ struct MyExample {
     draw_commands: Vec<PathDrawCmd>,
 
     //data
-    draw_next_buffer: bool,
+    _draw_next_buffer: bool,
     instance_points: Vec<glam::Vec2>,
 
     // input
     is_mouse_down: bool,
-    range: i32,
+    _range: i32,
 }
 
 impl Application for MyExample {
@@ -288,13 +288,13 @@ impl Application for MyExample {
             c_pipeline,
             bind_group,
             pipeline,
-            range: 0,
+            _range: 0,
 
             // uniform_buffer,
             draw_commands: Vec::new(),
 
             instance_points: Vec::new(),
-            draw_next_buffer: false,
+            _draw_next_buffer: false,
             is_mouse_down: false,
         }
     }

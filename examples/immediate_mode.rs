@@ -1,5 +1,5 @@
 use wgpu_app_lib::{
-    framework::{self, Application, UILayer},
+    framework::{self, Application},
     state::State,
 };
 use winit::dpi::PhysicalSize;

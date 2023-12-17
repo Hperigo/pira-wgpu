@@ -1,8 +1,7 @@
-use std::{os::macos::raw, time::Instant};
+use std::time::Instant;
 
 use egui::{FontDefinitions, ViewportId};
 use egui_wgpu::renderer::ScreenDescriptor;
-use wgpu::RenderPass;
 use winit::{
     dpi::PhysicalSize,
     event::{self, WindowEvent},
@@ -11,7 +10,7 @@ use winit::{
 
 //use crate::wgpu::{self, factories::render_pass::RenderPassFactory, State};
 use crate::{
-    factories::render_pass::{self, RenderPassFactory},
+    factories::render_pass::RenderPassFactory,
     state::{PerFrameData, Size, State},
 };
 

@@ -8,7 +8,7 @@ use wgpu_app_lib::{
 use winit::dpi::PhysicalSize;
 
 struct Object {
-    name: &'static str,
+    _name: &'static str,
     mesh: pipelines::shadeless::GpuMesh,
     position: glam::Vec3,
     rotation: glam::Quat,
@@ -54,14 +54,14 @@ impl Application for MyExample {
             wire_pipeline,
             objects: vec![
                 Object {
-                    name: "Cube",
+                    _name: "Cube",
                     mesh,
                     position: glam::Vec3::ZERO,
                     rotation: glam::Quat::IDENTITY,
                     scale: glam::Vec3::ONE,
                 },
                 Object {
-                    name: "Sphere",
+                    _name: "Sphere",
                     mesh: axis_mesh,
                     position: glam::vec3(12.0, 0.0, 0.0),
                     rotation: glam::Quat::IDENTITY,
