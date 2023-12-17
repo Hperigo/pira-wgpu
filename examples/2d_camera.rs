@@ -249,36 +249,7 @@ impl Application for MyExample {
         }
     }
 
-    fn update(&mut self, _state: &State, ui: &mut imgui::Ui, _frame_count: u64, _delta_time: f64) {
-        let w = ui
-            .window("debug")
-            .size([200.0, 300.0], imgui::Condition::FirstUseEver)
-            .collapsed(false, imgui::Condition::FirstUseEver)
-            .position([0.0, 500.0], imgui::Condition::FirstUseEver)
-            .begin();
-        if let Some(w) = w {
-            imgui::Drag::new("clear color")
-                .speed(0.01)
-                .range(0.0, 1.0)
-                .build_array(ui, &mut self.clear_color);
-
-            imgui::Drag::new("position").build_array(ui, self.position.as_mut());
-            ui.spacing();
-
-            imgui::Drag::new("camera position")
-                .build_array(ui, self.camera_controller.position.as_mut());
-            imgui::Drag::new("camera_scale")
-                .speed(0.01)
-                .build(ui, &mut self.camera_controller.scale);
-
-            if ui.button("reset camera") {
-                self.camera_controller.position = glam::Vec3::ZERO;
-                self.camera_controller.scale = 1.0;
-            }
-
-            w.end();
-        }
-    }
+    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {}
 
     fn resize(
         &mut self,

@@ -124,19 +124,7 @@ impl Application for MyExample {
         }
     }
 
-    fn update(&mut self, _state: &State, ui: &mut imgui::Ui, _frame_count: u64, _delta_time: f64) {
-        let w = ui
-            .window("debug")
-            .size([200.0, 300.0], imgui::Condition::FirstUseEver)
-            .begin();
-        if let Some(w) = w {
-            imgui::Drag::new("clear color")
-                .speed(0.01)
-                .range(0.0, 1.0)
-                .build_array(ui, &mut self.clear_color);
-            w.end();
-        }
-    }
+    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {}
 
     fn resize(
         &mut self,

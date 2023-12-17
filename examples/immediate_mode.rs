@@ -33,44 +33,44 @@ impl Application for MyExample {
         }
     }
 
-    fn update(&mut self, state: &State, ui: &mut imgui::Ui, frame_count: u64, _delta_time: f64) {
-        let w = ui
-            .window("debug")
-            .size([200.0, 300.0], imgui::Condition::FirstUseEver)
-            .collapsed(false, imgui::Condition::FirstUseEver)
-            .position([0.0, 500.0], imgui::Condition::FirstUseEver)
-            .begin();
-        if let Some(w) = w {
-            imgui::Drag::new("spacing")
-                .speed(0.1)
-                .build(ui, &mut self.spacing);
-            imgui::Drag::new("freq")
-                .speed(0.01)
-                .build(ui, &mut self.freq);
-            w.end();
-        }
+    fn update(&mut self, state: &State, frame_count: u64, _delta_time: f64) {
+        // let w = ui
+        //     .window("debug")
+        //     .size([200.0, 300.0], imgui::Condition::FirstUseEver)
+        //     .collapsed(false, imgui::Condition::FirstUseEver)
+        //     .position([0.0, 500.0], imgui::Condition::FirstUseEver)
+        //     .begin();
+        // if let Some(w) = w {
+        //     imgui::Drag::new("spacing")
+        //         .speed(0.1)
+        //         .build(ui, &mut self.spacing);
+        //     imgui::Drag::new("freq")
+        //         .speed(0.01)
+        //         .build(ui, &mut self.freq);
+        //     w.end();
+        // }
 
         self.im_draw.start();
 
         self.im_draw.push_color_alpha(0.1, 0.2, 0.3, 0.5);
         self.im_draw.push_rect(100.0, 100.0, 200.0, 100.0);
 
-        // self.im_draw.push_color(1.0, 1.0, 0.0);
-        // self.im_draw.push_rect(100.0, 350.0, 200.0, 100.0);
+        self.im_draw.push_color(1.0, 1.0, 0.0);
+        self.im_draw.push_rect(100.0, 350.0, 200.0, 100.0);
 
-        // self.im_draw.push_color(0.3, 0.4, 0.2);
+        self.im_draw.push_color(0.3, 0.4, 0.2);
 
-        // let mut points = Vec::new();
-        // for i in 0..1000 {
-        //     let x = (i as f32) * self.spacing;
-        //     let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
+        let mut points = Vec::new();
+        for i in 0..1000 {
+            let x = (i as f32) * self.spacing;
+            let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
 
-        //     points.push(glam::vec2(x, y + 100.0));
+            points.push(glam::vec2(x, y + 100.0));
 
-        //     self.im_draw.push_circle(x, y, 10.0);
-        // }
+            self.im_draw.push_circle(x, y, 10.0);
+        }
 
-        // self.im_draw.push_line(&points, 10.0);
+        self.im_draw.push_line(&points, 10.0);
 
         self.im_draw.end(state);
     }

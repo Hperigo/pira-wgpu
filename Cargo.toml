@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-winit = { version = "0.27.2" }
-wgpu = "0.15"
+winit = { version = "0.28" }
+wgpu = "0.18"
 pollster = "0.2"
 bytemuck = { version = "1.4", features = ["derive"] }
 image = { version = "0.24", default-features = false, features = [
@@ -17,6 +17,6 @@ image = { version = "0.24", default-features = false, features = [
 glam = { version = "*", features = ["bytemuck"] }
 rand = { version = "*" }
 
-imgui = "0.10"
-imgui-winit-support = { version = "0.10" }
-imgui-wgpu = { version = "0.22" }
+# imgui = "0.11"
+# imgui-winit-support = { version = "0.11" }
+# imgui-wgpu = { git = "https://github.com/Calcoph/imgui-wgpu-rs.git" }

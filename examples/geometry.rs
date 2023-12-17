@@ -86,38 +86,8 @@ impl Application for MyExample {
         self.orbit_controls.handle_events(state, event);
     }
 
-    fn update(&mut self, _state: &State, ui: &mut imgui::Ui, _frame_count: u64, _delta_time: f64) {
+    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {
         self.orbit_controls.update();
-
-        ui.window("Objects")
-            .size([400.0, 200.0], imgui::Condition::Always)
-            .build(|| {
-                for i in 0..self.objects.len() {
-                    ui.spacing();
-
-                    let obj = &mut self.objects[i];
-
-                    ui.label_text(obj.name, "");
-
-                    let _id = ui.push_id(format!("{}", i).as_str());
-                    imgui::Drag::new("Position").build_array(ui, obj.position.as_mut());
-                    imgui::Drag::new("Scale").build_array(ui, obj.scale.as_mut());
-
-                    let euler_rot = obj.rotation.to_euler(glam::EulerRot::XYZ);
-                    let mut euler_rot = [euler_rot.0, euler_rot.1, euler_rot.2];
-                    if imgui::Drag::new("Rotation")
-                        .speed(0.01)
-                        .build_array(ui, &mut euler_rot)
-                    {
-                        obj.rotation = glam::Quat::from_euler(
-                            glam::EulerRot::XYZ,
-                            euler_rot[0],
-                            euler_rot[1],
-                            euler_rot[2],
-                        );
-                    }
-                }
-            });
     }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {

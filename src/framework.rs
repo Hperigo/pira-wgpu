@@ -48,7 +48,7 @@ pub trait Application: 'static + Sized {
 
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(&mut self, state: &State, ui: &mut imgui::Ui, frame_count: u64, delta_time: f64);
+    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64);
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>);
 }
@@ -63,12 +63,12 @@ struct Setup {
 async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_count: u32) -> Setup {
     let event_loop = EventLoop::new();
     let mut builder = winit::window::WindowBuilder::new();
-
+    println!("1. Size: {:?}", size);
     builder = builder.with_title(title).with_inner_size(size);
 
     let window = builder.build(&event_loop).unwrap();
     let size = window.inner_size();
-
+    println!("2. Size: {:?}", size);
     let instance = wgpu::Instance::default();
     let window_surface = unsafe { instance.create_surface(&window).unwrap() };
 
@@ -112,53 +112,14 @@ fn start<E: Application>(
     // INIT APPLICATION
     let mut application = E::init(&state);
 
-    // Set up dear imgui
-    let mut imgui = imgui::Context::create();
-    let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
-    platform.attach_window(
-        imgui.io_mut(),
-        &window,
-        imgui_winit_support::HiDpiMode::Default,
-    );
-    imgui.set_ini_filename(None);
-
-    let hidpi_factor = window.scale_factor();
-
-    let font_size = (13.0 * hidpi_factor) as f32;
-    imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
-
-    imgui
-        .fonts()
-        .add_font(&[imgui::FontSource::DefaultFontData {
-            config: Some(imgui::FontConfig {
-                oversample_h: 1,
-                pixel_snap_h: true,
-                size_pixels: font_size,
-                ..Default::default()
-            }),
-        }]);
-
-    let renderer_config = imgui_wgpu::RendererConfig {
-        texture_format: state
-            .window_surface
-            .get_capabilities(&state.adapter)
-            .formats[0],
-        sample_count: 4,
-        depth_format: Some(wgpu::TextureFormat::Depth24Plus),
-        ..Default::default()
-    };
-
-    let mut imgui_renderer =
-        imgui_wgpu::Renderer::new(&mut imgui, &state.device, &state.queue, renderer_config);
-
     event_loop.run(move |event, _, control_flow| {
         match event {
             winit::event::Event::RedrawRequested(_) => {
                 let delta_time = Instant::now() - last_frame_inst;
                 last_frame_inst = Instant::now();
 
-                let ui: &mut imgui::Ui = imgui.frame();
-                application.update(&state, ui, frame_count, delta_time.as_secs_f64());
+                // let ui: &mut imgui::Ui = imgui.frame();
+                application.update(&state, frame_count, delta_time.as_secs_f64());
                 frame_count += 1;
 
                 state.delta_time = delta_time.as_millis() as f32;
@@ -175,36 +136,21 @@ fn start<E: Application>(
                         render_pass_factory.get_render_pass(ctx, &mut frame_data.encoder, true);
 
                     application.render(&state, &mut render_pass);
-
-                    imgui_renderer
-                        .render(
-                            imgui.render(),
-                            &state.queue,
-                            &state.device,
-                            &mut render_pass,
-                        )
-                        .expect("Rendering failed");
                 });
             }
             winit::event::Event::MainEventsCleared => {
                 window.request_redraw();
             }
             winit::event::Event::WindowEvent { ref event, .. } => {
-                unsafe {
-                    if !imgui::sys::igIsWindowHovered(
-                        imgui::sys::ImGuiHoveredFlags_AnyWindow as i32,
-                    ) {
-                        application.event(&mut state, event);
-                    }
-                };
-
                 if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
 
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
-                    state.window_size = Size::new(physical_size.width, physical_size.height);
-                    state.resize(*physical_size);
+                    // state.window_size = Size::new(physical_size.width, physical_size.height);
+
+                    println!("Size: {:?}", physical_size);
+                    // state.resize(*physical_size);
                 }
 
                 if let winit::event::WindowEvent::Focused(_focused) = event {}
@@ -217,7 +163,6 @@ fn start<E: Application>(
             }
             _ => {}
         }
-        platform.handle_event(imgui.io_mut(), &window, &event);
     });
 }
 

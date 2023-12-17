@@ -25,7 +25,7 @@ impl<'a> RenderPassFactory<'a> {
                 resolve_target: target,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(clear_color),
-                    store: false,
+                    store: wgpu::StoreOp::Discard,
                 },
             }));
     }
@@ -35,7 +35,7 @@ impl<'a> RenderPassFactory<'a> {
             view: &depth_texture,
             depth_ops: Some(wgpu::Operations {
                 load: wgpu::LoadOp::Clear(1.0),
-                store: false,
+                store: wgpu::StoreOp::Discard,
             }),
             stencil_ops: None,
         });
@@ -54,7 +54,7 @@ impl<'a> RenderPassFactory<'a> {
                 view: &texture_bundle.view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: false,
+                    store: wgpu::StoreOp::Discard,
                 }),
                 stencil_ops: None,
             })
@@ -67,6 +67,8 @@ impl<'a> RenderPassFactory<'a> {
             label: Some("Render Pass"),
             color_attachments: &self.color_attachments,
             depth_stencil_attachment: depth_stencil,
+            occlusion_query_set: None,
+            timestamp_writes: None,
         });
 
         render_pass
