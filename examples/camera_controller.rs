@@ -1,11 +1,11 @@
-use wgpu::PrimitiveTopology;
-use wgpu_app_lib::state::State;
-use wgpu_app_lib::{
+use pira_wgpu::state::State;
+use pira_wgpu::{
     framework::{self, Application},
     helpers::cameras::{self, CameraTrait, OrbitControls},
     helpers::geometry::{axis, GeometryFactory},
     pipelines::{self, shadeless::GpuMesh, shadeless::ShadelessPipeline},
 };
+use wgpu::PrimitiveTopology;
 use winit::dpi::PhysicalSize;
 
 struct MyExample {

@@ -1,4 +1,4 @@
-use wgpu_app_lib::{
+use pira_wgpu::{
     framework::{self, Application},
     helpers::cameras::OrbitControls,
     helpers::geometry::{cube, sphere, GeometryFactory},
@@ -16,8 +16,8 @@ struct Object {
 }
 
 struct MyExample {
-    batch: wgpu_app_lib::pipelines::shadeless::ShadelessPipeline,
-    wire_pipeline: wgpu_app_lib::pipelines::shadeless::ShadelessPipeline,
+    batch: pira_wgpu::pipelines::shadeless::ShadelessPipeline,
+    wire_pipeline: pira_wgpu::pipelines::shadeless::ShadelessPipeline,
     objects: Vec<Object>,
     orbit_controls: OrbitControls,
 }

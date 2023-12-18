@@ -1,12 +1,12 @@
+use pira_wgpu::factories;
+use pira_wgpu::factories::texture::{SamplerOptions, Texture2dOptions};
+use pira_wgpu::framework;
+use pira_wgpu::framework::Application;
+use pira_wgpu::pipelines::{self, shadeless, ModelUniform};
+use pira_wgpu::state::State;
 use wgpu;
 use wgpu::util::DeviceExt;
 use wgpu::RenderPass;
-use wgpu_app_lib::factories;
-use wgpu_app_lib::factories::texture::{SamplerOptions, Texture2dOptions};
-use wgpu_app_lib::framework;
-use wgpu_app_lib::framework::Application;
-use wgpu_app_lib::pipelines::{self, shadeless, ModelUniform};
-use wgpu_app_lib::state::State;
 
 use winit::dpi::PhysicalSize;
 use {glam::Mat4, glam::Vec4Swizzles};

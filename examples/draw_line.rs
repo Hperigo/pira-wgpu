@@ -4,10 +4,10 @@ use glam::Vec2;
 use wgpu;
 use wgpu::util::DeviceExt;
 
+use pira_wgpu::factories::{BindGroupFactory, RenderPipelineFactory};
+use pira_wgpu::framework::{self, Application};
+use pira_wgpu::state::State;
 use wgpu::RenderPass;
-use wgpu_app_lib::factories::{BindGroupFactory, RenderPipelineFactory};
-use wgpu_app_lib::framework::{self, Application};
-use wgpu_app_lib::state::State;
 use winit::dpi::PhysicalSize;
 use winit::event::{self, ElementState};
 

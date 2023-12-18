@@ -2,13 +2,13 @@ use glam::Mat4;
 use wgpu;
 use wgpu::util::DeviceExt;
 
+use pira_wgpu::factories::texture::{SamplerOptions, Texture2dOptions};
+use pira_wgpu::factories::{self};
+use pira_wgpu::framework;
+use pira_wgpu::framework::Application;
+use pira_wgpu::pipelines::{self, shadeless, ModelUniform};
+use pira_wgpu::state::State;
 use wgpu::RenderPass;
-use wgpu_app_lib::factories::texture::{SamplerOptions, Texture2dOptions};
-use wgpu_app_lib::factories::{self};
-use wgpu_app_lib::framework;
-use wgpu_app_lib::framework::Application;
-use wgpu_app_lib::pipelines::{self, shadeless, ModelUniform};
-use wgpu_app_lib::state::State;
 
 use winit::dpi::PhysicalSize;
 

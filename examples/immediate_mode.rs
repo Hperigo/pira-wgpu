@@ -1,15 +1,15 @@
-use wgpu_app_lib::{
+use pira_wgpu::{
     framework::{self, Application},
     state::State,
 };
 use winit::dpi::PhysicalSize;
 
-use wgpu_app_lib::immediate_mode::DrawContext;
+use pira_wgpu::immediate_mode::DrawContext;
 
-use wgpu_app_lib::framework::EguiLayer;
+use pira_wgpu::framework::EguiLayer;
 
 struct MyExample {
-    im_draw: wgpu_app_lib::immediate_mode::DrawContext,
+    im_draw: pira_wgpu::immediate_mode::DrawContext,
 
     spacing: f32,
     freq: f32,

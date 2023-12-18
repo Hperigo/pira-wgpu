@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use wgpu_app_lib::framework::{self, Application};
-use wgpu_app_lib::state::State;
+use pira_wgpu::framework::{self, Application};
+use pira_wgpu::state::State;
 use winit::dpi::PhysicalSize;
 
 struct MyExample {}

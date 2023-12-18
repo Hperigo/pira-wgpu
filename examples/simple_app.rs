@@ -3,11 +3,11 @@ use std::borrow::Cow;
 use wgpu;
 use wgpu::util::DeviceExt;
 
+use pira_wgpu::factories::{BindGroupFactory, RenderPipelineFactory};
+use pira_wgpu::framework;
+use pira_wgpu::framework::Application;
+use pira_wgpu::state::State;
 use wgpu::RenderPass;
-use wgpu_app_lib::factories::{BindGroupFactory, RenderPipelineFactory};
-use wgpu_app_lib::framework;
-use wgpu_app_lib::framework::Application;
-use wgpu_app_lib::state::State;
 use winit::dpi::PhysicalSize;
 
 const SHADER_SRC: &'static str = " 
