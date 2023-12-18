@@ -214,20 +214,7 @@ fn start<E: Application>(
 
     // INIT APPLICATION
     let mut application = E::init(&state);
-
     let mut ui = EguiLayer::setup(&window, &state.device);
-
-    // let egui_ctx = egui::Context::default();
-    // egui_ctx.set_fonts(FontDefinitions::default());
-    // let mut egui_winit_ctx =
-    //     egui_winit::State::new(ViewportId::ROOT, &window, Some(2.0), Some(1024));
-
-    // let mut egui_renderer = egui_wgpu::renderer::Renderer::new(
-    //     &state.device,
-    //     wgpu::TextureFormat::Bgra8UnormSrgb,
-    //     Some(wgpu::TextureFormat::Depth24Plus),
-    //     4,
-    // );
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -240,26 +227,6 @@ fn start<E: Application>(
                 frame_count += 1;
 
                 state.delta_time = delta_time.as_millis() as f32;
-
-                // let raw_input = egui_winit_ctx.egui_input_mut().take();
-
-                // egui_ctx.begin_frame(raw_input);
-
-                // egui::Window::new("Hey there").show(&egui_ctx, |ui| {
-                //     ui.label("text");
-                // });
-
-                // let output = egui_ctx.end_frame();
-                // println!("Run!");
-                // egui_winit_ctx.handle_platform_output(&window, &egui_ctx, output.platform_output);
-
-                // println!("Tessellate!");
-                // let screen_descriptor = ScreenDescriptor {
-                //     size_in_pixels: [window.inner_size().width, window.inner_size().height],
-                //     pixels_per_point: 2.0,
-                // };
-
-                // let primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
 
                 state.render(|ctx, frame_data| {
                     let mut render_pass_factory = RenderPassFactory::new();
@@ -303,8 +270,6 @@ fn start<E: Application>(
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
 
-                // egui_winit_ctx.on_window_event(&egui_ctx, event);
-
                 ui.event(event);
 
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
@@ -321,6 +286,8 @@ fn start<E: Application>(
                         *control_flow = winit::event_loop::ControlFlow::Exit;
                     }
                 }
+
+                application.event(&state, event);
             }
             _ => {}
         }

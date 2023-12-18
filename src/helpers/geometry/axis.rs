@@ -60,14 +60,14 @@ impl GeometryFactory for Axis {
     fn vertex_colors(&mut self){
         #[rustfmt::skip]
         let vertex_color: Vec<f32>  = vec![
-         1.0, 0.0, 0.0,
-         1.0, 0.0, 0.0,
+         1.0, 0.0, 0.0, 1.0,
+         1.0, 0.0, 0.0, 1.0,
          
-         0.0, 1.0, 0.0,
-         0.0, 1.0, 0.0,
+         0.0, 1.0, 0.0, 1.0,
+         0.0, 1.0, 0.0, 1.0,
 
-         0.0, 0.0, 1.0,
-         0.0, 0.0, 1.0,
+         0.0, 0.0, 1.0, 1.0,
+         0.0, 0.0, 1.0, 1.0,
         ];
          
         self.geometry.attributes.insert( attribute_names::COLOR, vertex_color);

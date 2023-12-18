@@ -109,13 +109,10 @@ impl Application for MyExample {
             &[],
         );
 
-        let uniform_alignment = state.device.limits().min_uniform_buffer_offset_alignment as usize;
+        let uniform_alignment = state.device.limits().min_uniform_buffer_offset_alignment as u32;
         for i in 0..matrices.len() {
-            render_pass.set_bind_group(
-                0,
-                &self.pipeline_batch.bind_group,
-                &[0, uniform_alignment as u32 * i as u32],
-            );
+            let offset = (i as wgpu::DynamicOffset) * (uniform_alignment as wgpu::DynamicOffset);
+            render_pass.set_bind_group(0, &self.pipeline_batch.bind_group, &[0, offset]);
             render_pass.draw_indexed(0..self.mesh.vertex_count, 0, 0..1);
         }
     }

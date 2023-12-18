@@ -97,58 +97,6 @@ pub struct ShadelessPipeline {
 }
 
 impl ShadelessPipeline {
-    pub fn new(ctx: &State, topology: PrimitiveTopology) -> Self {
-        let shader_module = ctx
-            .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Shader"),
-                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(SHADER_SRC)),
-            });
-
-        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x4, 3 => Float32x3 ];
-        let stride = std::mem::size_of::<Vertex>() as u64;
-
-        let global_uniform_buffer = create_global_uniform(&ctx.device);
-        let model_uniform_buffer = create_uniform_buffer::<ModelUniform>(1, &ctx.device);
-
-        let mut bind_factory = BindGroupFactory::new();
-        bind_factory.add_uniform(
-            wgpu::ShaderStages::VERTEX,
-            &global_uniform_buffer,
-            wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
-        );
-
-        bind_factory.add_uniform(
-            wgpu::ShaderStages::VERTEX,
-            &model_uniform_buffer,
-            wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
-        );
-
-        let (bind_group_layout, bind_group) = bind_factory.build(&ctx.device);
-        let mut pipeline_factory = RenderPipelineFactory::new();
-
-        pipeline_factory.add_vertex_attributes(&attribs, stride);
-        // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
-        pipeline_factory.add_depth_stencil();
-        pipeline_factory.set_topology(topology);
-
-        let pipeline =
-            pipeline_factory.create_render_pipeline(&ctx, &shader_module, &[&bind_group_layout]);
-
-        Self {
-            pipeline,
-            shader_module,
-            bind_group_layout,
-            bind_group,
-
-            texture_bind_group_layout: None,
-            texture_bind_group: None,
-
-            model_uniform_buffer: None,
-            global_uniform_buffer: None,
-        }
-    }
-
     pub fn new_with_texture(
         ctx: &State,
         // global_uniform_buffer: &wgpu::Buffer,
@@ -262,8 +210,7 @@ impl ShadelessPipeline {
                     vcolor[index + 3],
                 ];
 
-                println!("Color: {:?}", vertices[i]);
-                index += 3;
+                index += 4;
             }
         }
 
