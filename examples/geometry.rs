@@ -33,6 +33,7 @@ impl Application for MyExample {
 
         let mut cube = cube::Cube::new(5.0);
         cube.texture_coords();
+        cube.vertex_colors_from_normal();
         let mesh = shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube.geometry);
 
         let mut sphere = sphere::Sphere::new(5.0, 16, 32);

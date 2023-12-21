@@ -1,4 +1,4 @@
-use super::{GeometryData, attribute_names, GeometryFactory};
+use super::{GeometryData, attribute_names, GeometryFactory, vertex_colors_from_normals_impl};
 
 pub struct Cube {
     pub geometry: GeometryData,
@@ -62,6 +62,14 @@ impl Cube {
         //Add positions and indices
         Self { geometry }
     }
+
+    pub fn vertex_colors_from_normal(&mut self) {
+        if self.geometry.attributes.contains_key(&attribute_names::NORMALS) == false {
+            self.normals();
+        }
+        vertex_colors_from_normals_impl(&mut self.geometry);
+    }
+
 }
 
 impl GeometryFactory for Cube {
@@ -114,19 +122,50 @@ impl GeometryFactory for Cube {
             colors.push(1.0);
             colors.push(1.0);
             colors.push(1.0);
+            colors.push(1.0);
         }
         self.geometry.attributes.insert(attribute_names::COLOR, colors);
         
     }
 
 
-    fn normals(&mut self) {
-        let pos =  self.geometry.attributes.get(&attribute_names::POSITION).unwrap();
-        let mut normals = Vec::new();
 
-        for _ in pos{
-            normals.push(1.0);
-        }
+    fn normals(&mut self) {
+        #[rustfmt::skip]
+        let normals = vec![   
+            // top (0, 0, 1)
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            // bottom (0, 0, -1)
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            // right (1.0, 0, 0)
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            // left (-1.0, 0, 0)
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            // front (0, 1.0, 0)
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            // back (0, -1.0, 0)
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+        ];
+
+
         self.geometry.attributes.insert(attribute_names::NORMALS, normals);
 
     }
