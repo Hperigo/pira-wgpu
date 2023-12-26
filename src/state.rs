@@ -1,4 +1,4 @@
-use wgpu::{self, CommandEncoder, TextureFormat, TextureView};
+use wgpu::{self, AddressMode, CommandEncoder, TextureFormat, TextureView};
 use winit::dpi::PhysicalSize;
 
 use super::factories::texture::{DepthTextureFactory, Texture2dFactory, TextureBundle};
@@ -101,10 +101,29 @@ impl State {
         let depth_texture =
             DepthTextureFactory::new(&device, &config, sample_count, "Default Depth texture");
 
-        let tf = Texture2dFactory::new(2, 2);
+        let mut tf = Texture2dFactory::new(2, 2);
+        tf.set_sampler_descriptor(wgpu::SamplerDescriptor {
+            address_mode_u: AddressMode::Repeat,
+            address_mode_v: AddressMode::Repeat,
+            ..Default::default()
+        });
+
+        #[rustfmt::skip]
         let data: [u8; 16] = [
-            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-        ];
+            255, 255, 255, 255,
+            0, 0, 0, 255,
+            0, 0, 0, 255,
+            255, 255, 255, 255,
+        ]; // checkerboard
+
+        // #[rustfmt::skip]
+        // let data: [u8; 16] = [
+        //     255, 255, 255, 255,
+        //     255, 255, 255, 255,
+        //     255, 255, 255, 255,
+        //     255, 255, 255, 255,
+        // ]; // checkerboard
+
         let texture_bundle = tf.get_texture_and_sampler(&device, &queue, &data);
 
         State {

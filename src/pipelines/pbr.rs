@@ -58,6 +58,16 @@ var t_diffuse: texture_2d<f32>;
 @group(1) @binding(1)
 var s_diffuse: sampler;
 
+@group(1) @binding(2)
+var t_albedo: texture_2d<f32>;
+@group(1) @binding(3)
+var s_albedo: sampler;
+
+@group(1) @binding(4)
+var t_metallic: texture_2d<f32>;
+@group(1) @binding(5)
+var s_metallic: sampler;
+
 @vertex
 fn vs_main( model : VertexInput ) -> VertexOutput {
     var out: VertexOutput;
@@ -148,19 +158,41 @@ fn getDiffuse( albedo : vec3f, roughness4 : f32, NoV : f32, NoL : f32, VoH : f32
     return albedo / PI * ( NoL * c1 + c2 );
 }
 
+// http://imdoingitwrong.wordpress.com/2011/01/31/light-attenuation/
+fn getAttenuation( lightPosition :  vec3f, vertexPosition : vec3f, lightRadius : f32 ) -> f32
+{
+	var r				= lightRadius;
+	var L				= lightPosition - vertexPosition;
+	var dist			= length(L);
+	var d				= max( dist - r, 0.0 );
+	L					/= dist;
+	var denom			= d / r + 1.0f;
+	var attenuation	    = 1.0f / (denom*denom);
+	var cutoff  		= 0.0052f;
+	attenuation			= (attenuation - cutoff) / (1.0 - cutoff);
+	attenuation			= max(attenuation, 0.0);
+	
+	return attenuation;
+}
+
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
-    // //UNIFORMS 
+    // Textures --- 
+
+    var c_roughness = textureSample(t_diffuse, s_diffuse, in.uv * vec2(1.0)).rgb;
+    var c_albedo = textureSample(t_albedo, s_albedo, in.uv * vec2(1.0)).rgb;
+    var c_metallic = textureSample(t_metallic, s_metallic, in.uv * vec2(1.0)).rgb;
+
+
+    // UNIFORMS 
     var light_position = modelUniform.light_position; // vec3(5.0, 5.0, 10.0);
-    var albedo =  modelUniform.albedo;
-    var roughness = modelUniform.roughness;
-    var metallic = 0.0;
-    //var specular = 0.04;
+    var albedo =  modelUniform.albedo * c_albedo;
+    var roughness = saturate((modelUniform.roughness * c_roughness.r));
+    var metallic = modelUniform.metallic * c_metallic;
 
-    var roughness4 : f32 = roughness * roughness * roughness * roughness;
-
+    var roughness4 : f32 = pow(roughness, 4.0); //roughness * roughness * roughness * roughness;
 
     // Vectors ---
 
@@ -177,21 +209,23 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     var NoL = saturate(dot(N, L));
     
 	var diffuseColor		= albedo - albedo * metallic;
-    var F0 = vec3f(0.04);
-    F0 = mix(F0, albedo, vec3f(metallic));
+    // var F0 = vec3f(0.0001);
+    // F0 = mix(F0, albedo, vec3f(metallic));
+
+
+    var specularColor = mix( vec3( 0.08 ), albedo, metallic );
 
 
     var normal_distrib = getNormalDistribution(roughness4, NoH);
-	var fresnel = fresnelSchlick(max(dot(H, V), 0.0), F0) ;
+	var fresnel = fresnelSchlick(max(dot(H, V), 0.0), specularColor) ;
     var geom = getGeometricShadowing( roughness4, NoV, NoL, VoH, L, V );
 
-    var diffuse = getDiffuse(albedo, roughness, NoV, NoL, VoH);
+    var diffuse = getDiffuse(albedo, roughness4, NoV, NoL, VoH);
     var specular = NoL * normal_distrib * fresnel * geom;
 
-    var color = diffuse + specular; // TODO: add light color
+    var attenuation = getAttenuation(light_position, in.world_position, 6.0);
 
-    // color = color / (color + vec3(1.0));
-    // color = pow(color, vec3(1.0/2.2));  
+    var color = (diffuse + specular)* attenuation; // TODO: add light color
 
     return  vec4<f32>( vec3(color), 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
 }
@@ -255,6 +289,9 @@ impl PbrPipeline {
         // model_uniform_buffer: &wgpu::Buffer,
         // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
         texture: &TextureBundle,
+        albedo: &TextureBundle,
+        metaliic: &TextureBundle,
+
         topology: PrimitiveTopology,
         enable_depth: bool,
     ) -> Self {
@@ -286,10 +323,23 @@ impl PbrPipeline {
 
         let mut texture_bind_group_factory = BindGroupFactory::new();
         texture_bind_group_factory.add_texture_and_sampler(
-            wgpu::ShaderStages::VERTEX,
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
             &texture.view,
             &texture.sampler,
         );
+
+        texture_bind_group_factory.add_texture_and_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &albedo.view,
+            &albedo.sampler,
+        );
+
+        texture_bind_group_factory.add_texture_and_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &albedo.view,
+            &albedo.sampler,
+        );
+
         let (texture_bind_group_layout, texture_bind_group) =
             texture_bind_group_factory.build(&ctx.device);
 

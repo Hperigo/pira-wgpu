@@ -1,13 +1,20 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+use image::EncodableLayout;
 use pira_wgpu::{
+    factories::{
+        self,
+        texture::{SamplerOptions, Texture2dOptions},
+    },
     framework::{self, Application},
     helpers::cameras::OrbitControls,
     helpers::geometry::{sphere, GeometryFactory},
+    image,
     pipelines::{self, pbr},
     state::State,
 };
+use wgpu::TextureFormat;
 use winit::dpi::PhysicalSize;
 
 struct MyExample {
@@ -26,15 +33,68 @@ impl Application for MyExample {
         sphere.vertex_colors_from_normal();
         let sphere_mesh = pbr::PbrPipeline::get_buffers_from_geometry(state, &sphere.geometry);
 
-        // ctx: &State,
-        // global_uniform_buffer: &wgpu::Buffer,
-        // model_uniform_buffer: &wgpu::Buffer,
-        // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
-        // topology: PrimitiveTopology,
+        let roughness_image = image::open("./assets/rustediron2_roughness.png")
+            .unwrap()
+            .to_rgba8();
+
+        let roughness_bundle = factories::Texture2dFactory::new_with_options(
+            &state,
+            [roughness_image.width(), roughness_image.height()],
+            Texture2dOptions {
+                label: Some("RoughnessTexture"),
+                format: TextureFormat::Rgba8Unorm,
+                ..Default::default()
+            },
+            SamplerOptions {
+                filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            },
+            roughness_image.as_bytes(),
+        );
+
+        let albedo_image = image::open("./assets/rustediron2_basecolor.png")
+            .unwrap()
+            .to_rgba8();
+
+        let albedo_bundle = factories::Texture2dFactory::new_with_options(
+            &state,
+            [albedo_image.width(), albedo_image.height()],
+            Texture2dOptions {
+                label: Some("Albedo Texture"),
+                format: TextureFormat::Rgba8UnormSrgb,
+                ..Default::default()
+            },
+            SamplerOptions {
+                filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            },
+            albedo_image.as_bytes(),
+        );
+
+        let metallic_image = image::open("./assets/rustediron2_metallic.png")
+            .unwrap()
+            .to_rgba8();
+
+        let metallic_bundle = factories::Texture2dFactory::new_with_options(
+            &state,
+            [metallic_image.width(), albedo_image.height()],
+            Texture2dOptions {
+                label: Some("metallic Texture"),
+                format: TextureFormat::Rgba8Unorm,
+                ..Default::default()
+            },
+            SamplerOptions {
+                filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            },
+            metallic_image.as_bytes(),
+        );
 
         let pipeline = pipelines::pbr::PbrPipeline::new_with_texture(
             state,
-            &state.default_white_texture_bundle,
+            &roughness_bundle,
+            &albedo_bundle,
+            &metallic_bundle,
             wgpu::PrimitiveTopology::TriangleList,
             true,
         );
@@ -59,8 +119,16 @@ impl Application for MyExample {
         egui::Window::new("Settings").show(&egui_ctx.ctx, |ui| {
             ui.color_edit_button_rgb(self.uniform.albedo.as_mut());
 
+            ui.label("Roughness");
             ui.add(
                 egui::DragValue::new(&mut self.uniform.roughness)
+                    .clamp_range(0.0..=1.0)
+                    .speed(0.01),
+            );
+
+            ui.label("Metallic");
+            ui.add(
+                egui::DragValue::new(&mut self.uniform.metallic)
                     .clamp_range(0.0..=1.0)
                     .speed(0.01),
             );
@@ -68,14 +136,14 @@ impl Application for MyExample {
     }
 
     fn clear_color(&self) -> wgpu::Color {
-        // wgpu::Color {
-        //     r: 0.3,
-        //     g: 0.5,
-        //     b: 0.1,
-        //     a: 1.0,
-        // };
+        wgpu::Color {
+            r: 0.05,
+            g: 0.05,
+            b: 0.05,
+            a: 1.0,
+        }
 
-        wgpu::Color::BLACK
+        //wgpu::Color::BLACK/
     }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
@@ -97,11 +165,6 @@ impl Application for MyExample {
             &state.queue,
             &state.device,
         );
-
-        let mut pbr_uniform = pipelines::pbr::PbrMaterialModelUniform::new(glam::Mat4::IDENTITY);
-        pbr_uniform.albedo = glam::Vec3::ONE;
-        pbr_uniform.roughness = 1.0;
-        pbr_uniform.metallic = 1.0;
 
         pipelines::write_uniform_buffer(
             &[self.uniform],
