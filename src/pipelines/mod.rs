@@ -4,16 +4,16 @@ pub mod shadeless;
 #[repr(C, align(256))]
 #[derive(Clone, Copy)]
 pub struct ViewUniform {
+    pub view_pespective_matrix: glam::Mat4,
     pub view_matrix: glam::Mat4,
     pub perspective_matrix: glam::Mat4,
-    pub view_pespective_matrix: glam::Mat4,
     pub camera_position: glam::Vec3,
 }
 
 pub fn create_global_uniform(device: &wgpu::Device) -> wgpu::Buffer {
     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("GlobalUniform"),
-        size: std::mem::size_of::<glam::Mat4>() as u64,
+        size: std::mem::size_of::<ViewUniform>() as u64,
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         mapped_at_creation: false,
     });
@@ -70,15 +70,16 @@ pub fn write_uniform_buffer<T>(
     data: &[T],
     buffer: &wgpu::Buffer,
     queue: &wgpu::Queue,
-    device: &wgpu::Device,
+    _device: &wgpu::Device,
 ) {
-    let uniform_alignment =
-        device.limits().min_uniform_buffer_offset_alignment as wgpu::BufferAddress;
+    // let uniform_alignment =
+    //     device.limits().min_uniform_buffer_offset_alignment as wgpu::BufferAddress;
 
+    let len = data.len() * std::mem::size_of::<T>();
+
+    // println!("T: {}", std::mem::size_of::<T>());
+    // println!("Len: {}", len);
     queue.write_buffer(&buffer, 0, unsafe {
-        std::slice::from_raw_parts(
-            data.as_ptr() as *const u8,
-            data.len() * uniform_alignment as usize,
-        )
+        std::slice::from_raw_parts(data.as_ptr() as *const u8, len)
     });
 }

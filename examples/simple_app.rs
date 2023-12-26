@@ -1,13 +1,11 @@
 use std::borrow::Cow;
 
-use wgpu;
+use pira_wgpu::{
+    factories::{BindGroupFactory, RenderPipelineFactory},
+    framework::{self, Application},
+    state::State,
+};
 use wgpu::util::DeviceExt;
-
-use pira_wgpu::factories::{BindGroupFactory, RenderPipelineFactory};
-use pira_wgpu::framework;
-use pira_wgpu::framework::Application;
-use pira_wgpu::state::State;
-use wgpu::RenderPass;
 use winit::dpi::PhysicalSize;
 
 const SHADER_SRC: &'static str = " 
@@ -136,7 +134,7 @@ impl Application for MyExample {
 
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn render<'rpass>(&'rpass self, _state: &State, render_pass: &mut RenderPass<'rpass>) {
+    fn render<'rpass>(&'rpass self, _state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

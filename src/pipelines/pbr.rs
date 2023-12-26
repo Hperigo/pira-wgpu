@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use crate::factories::texture::TextureBundle;
 use crate::helpers::geometry::{self, attribute_names, GeometryData};
 use crate::state::State;
 
@@ -9,13 +10,13 @@ use wgpu::PrimitiveTopology;
 
 use wgpu::util::DeviceExt;
 
-use super::{ModelUniform, ViewUniform};
+use super::{create_global_uniform, create_uniform_buffer, ModelUniform, ViewUniform};
 const SHADER_SRC: &'static str = " 
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) color: vec3<f32>,
+    @location(2) color: vec4<f32>,
     @location(3) normal: vec3<f32>,
 };
 
@@ -23,23 +24,26 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) world_position: vec3<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) color: vec3<f32>,
+    @location(2) color: vec4<f32>,
     @location(3) normal: vec3<f32>,
 };
 
 struct CameraUniform {
+    view_proj_matrix : mat4x4<f32>,
     view_matrix : mat4x4<f32>,
     perspective_matrix : mat4x4<f32>,
-    view_proj_matrix : mat4x4<f32>,
     position : vec3<f32>,
 }
 
 struct ModelUniform {
     model_matrix : mat4x4<f32>,
+    light_position : vec3<f32>,
+
+    _pad1 : f32, 
 
     albedo : vec3<f32>,
-    metallic : f32,
     roughness : f32,
+    metallic : f32,
 }
 
 
@@ -70,11 +74,6 @@ fn vs_main( model : VertexInput ) -> VertexOutput {
 
 const PI : f32 = 3.14159265359;
 
-
-fn fresnelSchlick(cosTheta : f32, F0 : vec3<f32>) -> vec3<f32>
-{
-    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-}  
 
 fn DistributionGGX(N : vec3<f32>, H : vec3<f32>, roughness : f32) -> f32
 {
@@ -110,109 +109,154 @@ fn GeometrySmith(N : vec3<f32>, V : vec3<f32>, L : vec3<f32>, roughness : f32) -
     return ggx1 * ggx2;
 }
 
+// GGX Normal distribution
+fn getNormalDistribution(roughness : f32, NoH : f32 ) -> f32{
+    var d = ( NoH * roughness - NoH ) * NoH + 1.0;
+	return roughness / ( d*d );
+}
+
+fn getFresnel( specular_color : vec3f, VoH : f32 ) -> vec3f {
+    var specular_color_sqrt = sqrt( clamp( vec3f(), vec3f(0.99, 0.99, 0.99), specular_color ) );
+    var n = ( 1.0 + specular_color_sqrt ) / ( 1.0 - specular_color_sqrt );
+    var g = sqrt( n * n + VoH * VoH - 1.0 );
+	return 0.5 * pow( (g - VoH) / (g + VoH), vec3f(2.0) ) * ( 1.0 + pow( ((g+VoH)*VoH - 1.0) / ((g-VoH)*VoH + 1.0), vec3f(2.0) ) );
+}
+
+fn fresnelSchlick(cosTheta : f32, F0 : vec3f) -> vec3f
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}  
+
+fn getGeometricShadowing( roughness4 : f32,  NoV : f32, NoL : f32, VoH : f32, L : vec3f, V : vec3f )  -> f32 {
+    var gSmithV = NoV + sqrt( NoV * (NoV - NoV * roughness4) + roughness4 );
+	var gSmithL = NoL + sqrt( NoL * (NoL - NoL * roughness4) + roughness4 );
+
+    return 1.0 / (gSmithV * gSmithL);
+}
+
+fn getDiffuse( albedo : vec3f, roughness4 : f32, NoV : f32, NoL : f32, VoH : f32 ) -> vec3f {
+    var VoL = 2.0 * VoH - 1.0;
+    var c1 = 1.0 - 0.5 * roughness4 / (roughness4 + 0.33);
+    var cosri = VoL - NoV * NoL;
+
+    var f = NoL; 
+    if(cosri >= 0.0) {
+        f = min(1.0, NoL / NoV);
+    }
+
+    var c2 = 0.45 * roughness4 / (roughness4 + 0.09) * cosri * f ;
+    return albedo / PI * ( NoL * c1 + c2 );
+}
+
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
-    //UNIFORMS 
-    var light_position = vec3(5.0, 5.0, 10.0);
+    // //UNIFORMS 
+    var light_position = modelUniform.light_position; // vec3(5.0, 5.0, 10.0);
+    var albedo =  modelUniform.albedo;
+    var roughness = modelUniform.roughness;
+    var metallic = 0.0;
+    //var specular = 0.04;
+
+    var roughness4 : f32 = roughness * roughness * roughness * roughness;
+
+
+    // Vectors ---
 
     var N = normalize(in.normal);
-    var V = normalize( camera.position - in.world_position );
-
-    // Light contribution
     var L = normalize(light_position - in.world_position);
+    var V = normalize( camera.position - in.world_position ) ;
     var H = normalize(V + L);
 
-    var distance = length(light_position - in.world_position);
-    var attenuation = 1.0 / (distance * distance);
-    var radiance = vec3(1.0, 1.0, 1.0);
+    //Dot products ----
 
-    var F0 = vec3(0.04); 
-    F0     = mix(F0, modelUniform.albedo, modelUniform.metallic);
-
-    var NDF = DistributionGGX(N, H, modelUniform.roughness);   
-    var G   = GeometrySmith(N, V, L, modelUniform.roughness);      
-    var F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
-
-    var numerator    = NDF * G * F; 
-    var denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
-    var specular = numerator / denominator;
+    var NoH = saturate(dot(N, H));
+    var VoH = saturate(dot(V, H));
+    var NoV = saturate(dot(N, V));
+    var NoL = saturate(dot(N, L));
     
-    // kS is equal to Fresnel
-    var kS = F;
-    // for energy conservation, the diffuse and specular light can't
-    // be above 1.0 (unless the surface emits light); to preserve this
-    // relationship the diffuse component (kD) should equal 1.0 - kS.
-    var kD = vec3(1.0) - kS;
-    // multiply kD by the inverse metalness such that only non-metals 
-    // have diffuse lighting, or a linear blend if partly metal (pure metals
-    // have no diffuse light).
-    kD *= 1.0 - modelUniform.metallic;	  
-
-    // scale light by NdotL
-    var NdotL = max(dot(N, L), 0.0);        
-
-    // add to outgoing radiance Lo
-    var Lo = (kD * modelUniform.albedo / PI + specular) * radiance * NdotL;
+	var diffuseColor		= albedo - albedo * metallic;
+    var F0 = vec3f(0.04);
+    F0 = mix(F0, albedo, vec3f(metallic));
 
 
-    // HDR tonemapping
-    var color = Lo / (Lo + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
+    var normal_distrib = getNormalDistribution(roughness4, NoH);
+	var fresnel = fresnelSchlick(max(dot(H, V), 0.0), F0) ;
+    var geom = getGeometricShadowing( roughness4, NoV, NoL, VoH, L, V );
 
-    return  vec4<f32>(Lo, 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
+    var diffuse = getDiffuse(albedo, roughness, NoV, NoL, VoH);
+    var specular = NoL * normal_distrib * fresnel * geom;
+
+    var color = diffuse + specular; // TODO: add light color
+
+    // color = color / (color + vec3(1.0));
+    // color = pow(color, vec3(1.0/2.2));  
+
+    return  vec4<f32>( vec3(color), 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
 }
 ";
 
 #[repr(C, align(256))]
 #[derive(Clone, Copy)]
+
 pub struct PbrMaterialModelUniform {
     pub model_matrix: glam::Mat4,
+    pub light_position: glam::Vec3,
+
+    _pad1: f32,
+
     pub albedo: glam::Vec3,
-    pub metallic: f32,
+
     pub roughness: f32,
+    pub metallic: f32,
 }
 
 impl PbrMaterialModelUniform {
     pub fn new(mat: glam::Mat4) -> Self {
         Self {
             model_matrix: mat,
+            light_position: glam::Vec3::new(5.0, 5.0, 10.0),
             albedo: glam::Vec3::ONE,
             metallic: 0.0,
             roughness: 1.0,
+
+            _pad1: 0.0,
         }
     }
 }
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
-    pub color: [f32; 3],
+    pub color: [f32; 4],
     pub normal: [f32; 3],
 }
 
 pub struct PbrPipeline {
     pub shader_module: wgpu::ShaderModule,
     pub pipeline: wgpu::RenderPipeline,
-    pub bind_group_layout: wgpu::BindGroupLayout,
+    // pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 
-    pub texture_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    // pub texture_bind_group_layout: Option<wgpu::BindGroupLayout>,
     pub texture_bind_group: Option<wgpu::BindGroup>,
+
+    pub global_uniform_buffer: Option<wgpu::Buffer>,
+    pub model_uniform_buffer: Option<wgpu::Buffer>,
 }
 
 impl PbrPipeline {
     pub fn new_with_texture(
         ctx: &State,
-        global_uniform_buffer: &wgpu::Buffer,
-        model_uniform_buffer: &wgpu::Buffer,
-        texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
+        // global_uniform_buffer: &wgpu::Buffer,
+        // model_uniform_buffer: &wgpu::Buffer,
+        // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
+        texture: &TextureBundle,
         topology: PrimitiveTopology,
+        enable_depth: bool,
     ) -> Self {
         let shader_module = ctx
             .device
@@ -221,8 +265,11 @@ impl PbrPipeline {
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(SHADER_SRC)),
             });
 
-        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x3 ,3 => Float32x3 ];
+        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x4 ,3 => Float32x3];
         let stride = std::mem::size_of::<Vertex>() as u64;
+
+        let global_uniform_buffer = create_global_uniform(&ctx.device);
+        let model_uniform_buffer = create_uniform_buffer::<ModelUniform>(1, &ctx.device);
 
         let mut bind_factory = BindGroupFactory::new();
         bind_factory.add_uniform(
@@ -233,12 +280,16 @@ impl PbrPipeline {
         bind_factory.add_uniform(
             wgpu::ShaderStages::VERTEX_FRAGMENT,
             &model_uniform_buffer,
-            wgpu::BufferSize::new(std::mem::size_of::<ModelUniform>() as _),
+            wgpu::BufferSize::new(std::mem::size_of::<PbrMaterialModelUniform>() as _),
         );
         let (bind_group_layout, bind_group) = bind_factory.build(&ctx.device);
 
         let mut texture_bind_group_factory = BindGroupFactory::new();
-        texture_bind_group_factory.add_texture_and_sampler(texture.0, texture.2, texture.1);
+        texture_bind_group_factory.add_texture_and_sampler(
+            wgpu::ShaderStages::VERTEX,
+            &texture.view,
+            &texture.sampler,
+        );
         let (texture_bind_group_layout, texture_bind_group) =
             texture_bind_group_factory.build(&ctx.device);
 
@@ -246,7 +297,9 @@ impl PbrPipeline {
         pipeline_factory.set_label("PBR pipeline");
         pipeline_factory.add_vertex_attributes(&attribs, stride);
         // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
-        pipeline_factory.add_depth_stencil();
+        if enable_depth {
+            pipeline_factory.add_depth_stencil();
+        }
         pipeline_factory.set_topology(topology);
 
         let pipeline = pipeline_factory.create_render_pipeline(
@@ -258,11 +311,14 @@ impl PbrPipeline {
         Self {
             pipeline,
             shader_module,
-            bind_group_layout,
+            // bind_group_layout,
             bind_group,
 
-            texture_bind_group_layout: Some(texture_bind_group_layout),
+            // texture_bind_group_layout: Some(texture_bind_group_layout),
             texture_bind_group: Some(texture_bind_group),
+
+            global_uniform_buffer: Some(global_uniform_buffer),
+            model_uniform_buffer: Some(model_uniform_buffer),
         }
     }
 
@@ -283,7 +339,7 @@ impl PbrPipeline {
             vertices.push(Vertex {
                 position,
                 uv: [0.0, 0.0],
-                color: [1.0, 1.0, 1.0],
+                color: [1.0, 1.0, 1.0, 1.0],
                 normal: [0.0, 0.0, 0.0],
             });
         }
@@ -304,10 +360,15 @@ impl PbrPipeline {
         if let Some(vcolor) = vcolors_option {
             let mut index = 0;
             for i in 0..vertices.len() {
-                vertices[i].color = [vcolor[index], vcolor[index + 1], vcolor[index + 2]];
+                vertices[i].color = [
+                    vcolor[index],
+                    vcolor[index + 1],
+                    vcolor[index + 2],
+                    vcolor[index + 3],
+                ];
 
                 println!("Color: {:?}", vertices[i]);
-                index += 3;
+                index += 4;
             }
         }
 

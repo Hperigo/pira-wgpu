@@ -61,7 +61,9 @@ pub trait UILayer {
     fn setup(window: &winit::window::Window, device: &wgpu::Device) -> Self
     where
         Self: Sized;
-    fn event(&mut self, _event: &winit::event::WindowEvent) {}
+    fn event(&mut self, _event: &winit::event::WindowEvent) -> bool {
+        false
+    }
     fn begin_gui(&mut self);
     fn end_gui(
         &mut self,
@@ -106,8 +108,9 @@ impl UILayer for EguiLayer {
             primitives: Vec::new(),
         }
     }
-    fn event(&mut self, event: &winit::event::WindowEvent) {
+    fn event(&mut self, event: &winit::event::WindowEvent) -> bool {
         let _ = self.winit_state.on_window_event(&self.ctx, event);
+        self.ctx.is_pointer_over_area()
     }
     fn begin_gui(&mut self) {
         let raw_input = self.winit_state.egui_input_mut().take();
@@ -270,7 +273,7 @@ fn start<E: Application>(
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
 
-                ui.event(event);
+                let is_ui_using_event = ui.event(event);
 
                 if let winit::event::WindowEvent::Resized(physical_size) = event {
                     // state.window_size = Size::new(physical_size.width, physical_size.height);
@@ -286,8 +289,9 @@ fn start<E: Application>(
                         *control_flow = winit::event_loop::ControlFlow::Exit;
                     }
                 }
-
-                application.event(&state, event);
+                if !is_ui_using_event {
+                    application.event(&state, event);
+                }
             }
             _ => {}
         }

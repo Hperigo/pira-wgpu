@@ -250,6 +250,10 @@ impl OrbitControls {
         )
     }
 
+    pub fn get_perspective_matrix(&self) -> glam::Mat4 {
+        self.camera.get_perspective_matrix()
+    }
+
     pub fn get_perspective_view_matrix(&self) -> glam::Mat4 {
         self.camera.get_perspective_matrix() * self.get_view_matrix()
     }
