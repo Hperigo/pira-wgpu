@@ -37,12 +37,14 @@ struct CameraUniform {
 
 struct ModelUniform {
     model_matrix : mat4x4<f32>,
+    
     light_position : vec3<f32>,
+    light_intensity : f32,
 
-    _pad1 : f32, 
+    ambient : vec3<f32>,
+    roughness : f32,
 
     albedo : vec3<f32>,
-    roughness : f32,
     metallic : f32,
 }
 
@@ -85,40 +87,6 @@ fn vs_main( model : VertexInput ) -> VertexOutput {
 const PI : f32 = 3.14159265359;
 
 
-fn DistributionGGX(N : vec3<f32>, H : vec3<f32>, roughness : f32) -> f32
-{
-    var a      = roughness*roughness;
-    var a2     = a*a;
-    var NdotH  = max(dot(N, H), 0.0);
-    var NdotH2 = NdotH*NdotH;
-	
-    var num   = a2;
-    var denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
-	
-    return num / denom;
-}
-fn GeometrySchlickGGX(NdotV : f32, roughness : f32) -> f32
-{
-    var r = (roughness + 1.0);
-    var k = (r*r) / 8.0;
-     
-    var nom   = NdotV;
-    var denom = NdotV * (1.0 - k) + k;
-    
-    return nom / denom;
-}
-
-fn GeometrySmith(N : vec3<f32>, V : vec3<f32>, L : vec3<f32>, roughness : f32) -> f32
-{
-    var NdotV = max(dot(N, V), 0.0);
-    var NdotL = max(dot(N, L), 0.0);
-    var ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    var ggx1 = GeometrySchlickGGX(NdotL, roughness);
-
-    return ggx1 * ggx2;
-}
-
 // GGX Normal distribution
 fn getNormalDistribution(roughness : f32, NoH : f32 ) -> f32{
     var d = ( NoH * roughness - NoH ) * NoH + 1.0;
@@ -150,9 +118,9 @@ fn getDiffuse( albedo : vec3f, roughness4 : f32, NoV : f32, NoL : f32, VoH : f32
     var cosri = VoL - NoV * NoL;
 
     var f = NoL; 
-    if(cosri >= 0.0) {
-        f = min(1.0, NoL / NoV);
-    }
+    // if(cosri >= 0.0) {
+    //     f = min(1.0, NoL / NoV);
+    // }
 
     var c2 = 0.45 * roughness4 / (roughness4 + 0.09) * cosri * f ;
     return albedo / PI * ( NoL * c1 + c2 );
@@ -175,6 +143,18 @@ fn getAttenuation( lightPosition :  vec3f, vertexPosition : vec3f, lightRadius :
 	return attenuation;
 }
 
+const A = 0.15;
+const B = 0.50;
+const C = 0.10;
+const D = 0.20;
+const E = 0.02;
+const F = 0.30;
+
+fn Uncharted2Tonemap( x : vec3f ) -> vec3f
+{
+	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+}
+
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
@@ -188,6 +168,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
     // UNIFORMS 
     var light_position = modelUniform.light_position; // vec3(5.0, 5.0, 10.0);
+    var light_intensity = modelUniform.light_intensity;
+    var ambient = modelUniform.ambient;
+
     var albedo =  modelUniform.albedo * c_albedo;
     var roughness = saturate((modelUniform.roughness * c_roughness.r));
     var metallic = modelUniform.metallic * c_metallic;
@@ -213,23 +196,46 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     // F0 = mix(F0, albedo, vec3f(metallic));
 
 
-    var specularColor = mix( vec3( 0.08 ), albedo, metallic );
+    var specularColor = mix( vec3( 0.04 ), albedo, metallic );
 
 
     var normal_distrib = getNormalDistribution(roughness4, NoH);
 	var fresnel = fresnelSchlick(max(dot(H, V), 0.0), specularColor) ;
     var geom = getGeometricShadowing( roughness4, NoV, NoL, VoH, L, V );
 
-    var diffuse = getDiffuse(albedo, roughness4, NoV, NoL, VoH);
+    var diffuse = getDiffuse(albedo, roughness4, NoV, NoL, VoH) * (1.0 - metallic);
     var specular = NoL * normal_distrib * fresnel * geom;
 
-    var attenuation = getAttenuation(light_position, in.world_position, 6.0);
+    var attenuation = getAttenuation(light_position, in.world_position, light_intensity);
 
     var color = (diffuse + specular)* attenuation; // TODO: add light color
+
+    color += ambient * albedo;
+
+    color = Uncharted2Tonemap(color * 10.0);
+
+    // white balance
+	var whiteInputLevel = 10.0f;
+	var whiteScale			= 1.0f / Uncharted2Tonemap( vec3( whiteInputLevel ) );
+	color					= color * whiteScale;
+
+    //color = pow( color, vec3( 1.0f / 2.2 ) );
+
 
     return  vec4<f32>( vec3(color), 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
 }
 ";
+// struct ModelUniform {
+//     model_matrix : mat4x4<f32>,
+
+//     light_position : vec3<f32>,
+//     light_intensity : f32,
+
+//     ambient : vec3<f32>,
+
+//     albedo : vec3<f32>,
+//     roughness : f32,
+//     metallic : f32,
 
 #[repr(C, align(256))]
 #[derive(Clone, Copy)]
@@ -237,12 +243,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 pub struct PbrMaterialModelUniform {
     pub model_matrix: glam::Mat4,
     pub light_position: glam::Vec3,
+    pub light_intensity: f32,
 
-    _pad1: f32,
+    pub ambient: glam::Vec3,
+    pub roughness: f32,
 
     pub albedo: glam::Vec3,
-
-    pub roughness: f32,
     pub metallic: f32,
 }
 
@@ -251,11 +257,11 @@ impl PbrMaterialModelUniform {
         Self {
             model_matrix: mat,
             light_position: glam::Vec3::new(5.0, 5.0, 10.0),
+            light_intensity: 1.0,
+            ambient: glam::Vec3::ONE * 0.005,
             albedo: glam::Vec3::ONE,
-            metallic: 0.0,
+            metallic: 1.0,
             roughness: 1.0,
-
-            _pad1: 0.0,
         }
     }
 }
@@ -336,8 +342,8 @@ impl PbrPipeline {
 
         texture_bind_group_factory.add_texture_and_sampler(
             wgpu::ShaderStages::VERTEX_FRAGMENT,
-            &albedo.view,
-            &albedo.sampler,
+            &metaliic.view,
+            &metaliic.sampler,
         );
 
         let (texture_bind_group_layout, texture_bind_group) =

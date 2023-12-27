@@ -119,6 +119,36 @@ impl Application for MyExample {
         egui::Window::new("Settings").show(&egui_ctx.ctx, |ui| {
             ui.color_edit_button_rgb(self.uniform.albedo.as_mut());
 
+            ui.label("Ambient");
+
+            ui.color_edit_button_rgb(self.uniform.ambient.as_mut());
+
+            ui.label("Light Position");
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::DragValue::new(&mut self.uniform.light_position.x)
+                        .prefix("x: ")
+                        .speed(0.01),
+                );
+                ui.add(
+                    egui::DragValue::new(&mut self.uniform.light_position.y)
+                        .prefix("y: ")
+                        .speed(0.01),
+                );
+                ui.add(
+                    egui::DragValue::new(&mut self.uniform.light_position.z)
+                        .prefix("z: ")
+                        .speed(0.01),
+                );
+            });
+
+            ui.label("Light");
+            ui.add(
+                egui::DragValue::new(&mut self.uniform.light_intensity)
+                    .clamp_range(0.0..=20.0)
+                    .speed(0.01),
+            );
+
             ui.label("Roughness");
             ui.add(
                 egui::DragValue::new(&mut self.uniform.roughness)
@@ -137,13 +167,11 @@ impl Application for MyExample {
 
     fn clear_color(&self) -> wgpu::Color {
         wgpu::Color {
-            r: 0.05,
-            g: 0.05,
-            b: 0.05,
+            r: self.uniform.ambient.x as f64,
+            g: self.uniform.ambient.y as f64,
+            b: self.uniform.ambient.z as f64,
             a: 1.0,
         }
-
-        //wgpu::Color::BLACK/
     }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
