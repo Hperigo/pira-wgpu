@@ -296,7 +296,7 @@ impl PbrPipeline {
         // texture: (wgpu::ShaderStages, &wgpu::Sampler, &wgpu::TextureView),
         texture: &TextureBundle,
         albedo: &TextureBundle,
-        metaliic: &TextureBundle,
+        metallic: &TextureBundle,
 
         topology: PrimitiveTopology,
         enable_depth: bool,
@@ -342,8 +342,8 @@ impl PbrPipeline {
 
         texture_bind_group_factory.add_texture_and_sampler(
             wgpu::ShaderStages::VERTEX_FRAGMENT,
-            &metaliic.view,
-            &metaliic.sampler,
+            &metallic.view,
+            &metallic.sampler,
         );
 
         let (texture_bind_group_layout, texture_bind_group) =
