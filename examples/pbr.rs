@@ -14,7 +14,6 @@ use pira_wgpu::{
     pipelines::{self, pbr},
     state::State,
 };
-use rand::distributions::uniform;
 use wgpu::TextureFormat;
 use winit::dpi::PhysicalSize;
 
@@ -101,7 +100,7 @@ impl Application for MyExample {
         );
 
         let mut uniform = pipelines::pbr::PbrMaterialModelUniform::new(glam::Mat4::IDENTITY);
-        uniform.light_intensity = 10.0;
+        uniform.light_intensity = 5.0;
         Self {
             pipeline,
             mesh: sphere_mesh,
