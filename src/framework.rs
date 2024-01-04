@@ -202,6 +202,11 @@ fn start<E: Application>(
         mut state,
     }: Setup,
 ) {
+    let server_addr = format!("127.0.0.1:{}", puffin_http::DEFAULT_PORT);
+    let _puffin_server = puffin_http::Server::new(&server_addr).unwrap();
+    eprintln!("Run this to view profiling data:  puffin_viewer {server_addr}");
+    puffin::set_scopes_on(true);
+
     let mut config = state
         .window_surface
         .get_default_config(&state.adapter, size.width, size.height)
@@ -215,8 +220,11 @@ fn start<E: Application>(
     let mut last_frame_inst = Instant::now();
     let mut frame_count = 0;
 
-    // INIT APPLICATION
-    let mut application = E::init(&state);
+    let mut application = {
+        puffin::profile_scope!("Application init");
+        E::init(&state)
+    };
+
     let mut ui = EguiLayer::setup(&window, &state.device);
 
     event_loop.run(move |event, _, control_flow| {
@@ -225,13 +233,16 @@ fn start<E: Application>(
                 let delta_time = Instant::now() - last_frame_inst;
                 last_frame_inst = Instant::now();
 
-                // let ui: &mut imgui::Ui = imgui.frame();
-                application.update(&state, frame_count, delta_time.as_secs_f64());
+                {
+                    puffin::profile_scope!("update");
+                    application.update(&state, frame_count, delta_time.as_secs_f64());
+                }
                 frame_count += 1;
 
                 state.delta_time = delta_time.as_millis() as f32;
 
                 state.render(|ctx, frame_data| {
+                    puffin::profile_scope!("Render");
                     let mut render_pass_factory = RenderPassFactory::new();
 
                     let PerFrameData {
@@ -264,6 +275,7 @@ fn start<E: Application>(
                         ui.render(&mut render_pass, &screen_descriptor)
                     }
                 });
+                puffin::GlobalProfiler::lock().new_frame();
             }
             winit::event::Event::MainEventsCleared => {
                 window.request_redraw();
@@ -290,6 +302,7 @@ fn start<E: Application>(
                     }
                 }
                 if !is_ui_using_event {
+                    puffin::profile_scope!("Event");
                     application.event(&state, event);
                 }
             }
