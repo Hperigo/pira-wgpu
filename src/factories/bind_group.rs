@@ -70,6 +70,34 @@ impl<'a> BindGroupFactory<'a> {
         self
     }
 
+    pub fn add_texture_hdr_and_sampler<'b>(
+        &'b mut self,
+        stage: wgpu::ShaderStages,
+        texture_view: &'a wgpu::TextureView,
+        sampler: &'a wgpu::Sampler,
+    ) -> &'b mut Self {
+        self.resources.push(wgpu::BindGroupEntry {
+            binding: self.resources.len() as u32,
+            resource: wgpu::BindingResource::TextureView(&texture_view),
+        });
+        self.resources.push(wgpu::BindGroupEntry {
+            binding: self.resources.len() as u32,
+            resource: wgpu::BindingResource::Sampler(&sampler),
+        });
+
+        let texture_binding_type = wgpu::BindingType::Texture {
+            multisampled: false,
+            view_dimension: wgpu::TextureViewDimension::D2,
+            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+        };
+        let sampler_binding_type = wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering);
+
+        self.binding_types.push((stage, texture_binding_type));
+        self.binding_types.push((stage, sampler_binding_type));
+
+        self
+    }
+
     pub fn build(&self, device: &wgpu::Device) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
         let mut layout_entries = Vec::new();
         for index in 0..self.binding_types.len() {

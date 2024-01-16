@@ -126,6 +126,7 @@ impl Application for MyExample {
             ui.color_edit_button_rgb(self.uniform.ambient.as_mut());
 
             ui.label("Light Position");
+
             ui.horizontal(|ui| {
                 ui.add(
                     egui::DragValue::new(&mut self.uniform.light_position.x)
