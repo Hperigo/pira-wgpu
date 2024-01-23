@@ -5,143 +5,6 @@ use crate::{factories, pipelines};
 use image::EncodableLayout;
 use wgpu::{BufferBinding, SamplerDescriptor, ShaderModuleDescriptor, TextureViewDescriptor};
 
-const SHADER_SRC: &'static str = " 
-struct VertexOutput {
-    @builtin(position) frag_position  : vec4<f32>,
-    @location(0) clip_position: vec4<f32>,
-}
-@vertex
-fn vs_main(@builtin(vertex_index) id: u32) -> VertexOutput {
-    let uv = vec2<f32>(vec2<u32>(
-        id & 1u,
-        (id >> 1u) & 1u,
-    ));
-    var out: VertexOutput;
-    // out.clip_position = vec4(uv * vec2(4.0, -4.0) + vec2(-1.0, 1.0), 0.0, 1.0);
-    out.clip_position = vec4(uv * 4.0 - 1.0, 0.9, 1.0);
-    out.frag_position = vec4(uv * 4.0 - 1.0, 0.9, 1.0);
-
-    return out;
-}
-
-struct CameraUniform {
-    view_pos: vec4<f32>,
-    view: mat4x4<f32>,
-    view_proj: mat4x4<f32>,
-    inv_proj: mat4x4<f32>,
-    inv_view: mat4x4<f32>,
-};
-
-@group(0) @binding(0)
-var env_map: texture_cube<f32>;
-@group(0) @binding(1)
-var env_sampler: sampler;
-
-@group(0) @binding(2)
-var<uniform> camera : CameraUniform;
-
-@fragment
-fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
-    let view_pos_homogeneous = camera.inv_proj * in.clip_position;
-    let view_ray_direction = view_pos_homogeneous.xyz / view_pos_homogeneous.w;
-    var ray_direction = normalize((camera.inv_view * vec4(view_ray_direction, 0.0)).xyz);
-
-    let sample = textureSample(env_map, env_sampler, ray_direction);
-    return sample;
- }
-";
-
-const COMPUTE_SHADER: &'static str = "
-
-const PI: f32 = 3.1415926535897932384626433832795;
-
-struct Face {
-    forward: vec3<f32>,
-    up: vec3<f32>,
-    right: vec3<f32>,
-}
-
-@group(0)
-@binding(0)
-var src: texture_2d<f32>;
-
-@group(0)
-@binding(1)
-var dst: texture_storage_2d_array<rgba32float, write>;
-
-
-@compute
-@workgroup_size(16, 16, 1)
-fn compute_equirect_to_cubemap(
-    @builtin(global_invocation_id)
-    gid: vec3<u32>,
-) {
-    // If texture size is not divisible by 32, we
-    // need to make sure we don't try to write to
-    // pixels that don't exist.
-    if gid.x >= u32(textureDimensions(dst).x) {
-        return;
-    }
-
-    var FACES: array<Face, 6> = array(
-        // FACES +X
-        Face(
-            vec3(1.0, 0.0, 0.0),  // forward
-            vec3(0.0, 1.0, 0.0),  // up
-            vec3(0.0, 0.0, -1.0), // right
-        ),
-        // FACES -X
-        Face (
-            vec3(-1.0, 0.0, 0.0),
-            vec3(0.0, 1.0, 0.0),
-            vec3(0.0, 0.0, 1.0),
-        ),
-        // FACES +Y
-        Face (
-            vec3(0.0, -1.0, 0.0),
-            vec3(0.0, 0.0, 1.0),
-            vec3(1.0, 0.0, 0.0),
-        ),
-        // FACES -Y
-        Face (
-            vec3(0.0, 1.0, 0.0),
-            vec3(0.0, 0.0, -1.0),
-            vec3(1.0, 0.0, 0.0),
-        ),
-        // FACES +Z
-        Face (
-            vec3(0.0, 0.0, 1.0),
-            vec3(0.0, 1.0, 0.0),
-            vec3(1.0, 0.0, 0.0),
-        ),
-        // FACES -Z
-        Face (
-            vec3(0.0, 0.0, -1.0),
-            vec3(0.0, 1.0, 0.0),
-            vec3(-1.0, 0.0, 0.0),
-        ),
-    );
-
-    // Get texture coords relative to cubemap face
-    let dst_dimensions = vec2<f32>(textureDimensions(dst));
-    let cube_uv = vec2<f32>(gid.xy) / dst_dimensions * 2.0 - 1.0;
-
-    // Get spherical coordinate from cube_uv
-    let face = FACES[gid.z];
-    let spherical = normalize(face.forward + face.right * cube_uv.x + face.up * cube_uv.y);
-
-    // Get coordinate on the equirectangular texture
-    let inv_atan = vec2(0.1591, 0.3183);
-    let eq_uv = vec2(atan2(spherical.z, spherical.x), asin(spherical.y)) * inv_atan + 0.5;
-    let eq_pixel = vec2<i32>(eq_uv * vec2<f32>(textureDimensions(src)));
-
-    // We use textureLoad() as textureSample() is not allowed in compute shaders
-    var sample = textureLoad(src, eq_pixel, 0);
-
-    textureStore(dst, gid.xy, gid.z, sample);
-}
-";
-
 #[repr(C, align(16))]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniform {
@@ -223,7 +86,7 @@ impl SkyRenderer {
         // Run compute shader -----------
         let shader_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Equirectangular to cubemap compute"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(COMPUTE_SHADER)),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_env_to_cubemap.wgsl").into()),
         });
 
         //create equirectangular texture
@@ -394,7 +257,7 @@ impl SkyRenderer {
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Sky"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(SHADER_SRC)),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_sky_render.wgsl").into()),
         });
 
         let mut sky_render_pipeline = factories::RenderPipelineFactory::new();
