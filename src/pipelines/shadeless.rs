@@ -5,7 +5,7 @@ use crate::state::State;
 
 use crate::factories::{texture::TextureBundle, BindGroupFactory, RenderPipelineFactory};
 
-use wgpu::PrimitiveTopology;
+use wgpu::{PrimitiveTopology, VertexAttribute};
 
 use wgpu::util::DeviceExt;
 
@@ -113,7 +113,7 @@ impl ShadelessPipeline {
                 source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(SHADER_SRC)),
             });
 
-        let attribs = wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x4, 3 => Float32x3 ];
+        let attribs = ShadelessPipeline::get_vertex_attrib_layout_array();
         let stride = std::mem::size_of::<Vertex>() as u64;
 
         let global_uniform_buffer = create_global_uniform(&ctx.device);
@@ -235,6 +235,14 @@ impl ShadelessPipeline {
             index_buffer,
             vertex_count: geo_data.indices.len() as u32,
         }
+    }
+
+    pub fn get_vertex_attrib_layout_array() -> [VertexAttribute; 4] {
+        wgpu::vertex_attr_array![ 0 => Float32x3, 1 => Float32x2, 2 => Float32x4, 3 => Float32x3 ]
+    }
+
+    pub fn get_array_stride() -> u64 {
+        std::mem::size_of::<Vertex>() as u64
     }
 }
 
