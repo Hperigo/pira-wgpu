@@ -1,5 +1,6 @@
 pub mod pbr;
 pub mod shadeless;
+pub mod sky;
 
 #[repr(C, align(256))]
 #[derive(Clone, Copy)]
