@@ -197,9 +197,11 @@ impl Application for MyExample {
     }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_bind_group(0, &self.sky_renderer.bind_group, &[]);
-        render_pass.set_pipeline(&self.sky_renderer.pipeline);
-        render_pass.draw(0..3, 0..1);
+        self.sky_renderer.draw(render_pass);
+
+        // render_pass.set_bind_group(0, &self.sky_renderer.bind_group, &[]);
+        // render_pass.set_pipeline(&self.sky_renderer.pipeline);
+        // render_pass.draw(0..3, 0..1);
 
         // render_pass.draw_indexed(0..6, 0, 0..1);
 

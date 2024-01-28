@@ -10,6 +10,7 @@ use wgpu::PrimitiveTopology;
 
 use wgpu::util::DeviceExt;
 
+use super::sky::SkyRenderer;
 use super::{create_global_uniform, create_uniform_buffer, ModelUniform, ViewUniform};
 const SHADER_SRC: &'static str = " 
 
@@ -69,6 +70,11 @@ var s_albedo: sampler;
 var t_metallic: texture_2d<f32>;
 @group(1) @binding(5)
 var s_metallic: sampler;
+
+@group(1) @binding(6)
+var env_map: texture_cube<f32>;
+@group(1) @binding(7)
+var env_sampler: sampler;
 
 @vertex
 fn vs_main( model : VertexInput ) -> VertexOutput {
@@ -194,7 +200,10 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 	var diffuseColor		= albedo - albedo * metallic;
     // var F0 = vec3f(0.0001);
     // F0 = mix(F0, albedo, vec3f(metallic));
-
+    
+    
+    let world_reflect = reflect(-V, N);
+    let reflection = textureSample(env_map, env_sampler, world_reflect).rgb;
 
     var specularColor = mix( vec3( 0.04 ), albedo, metallic );
 
@@ -222,20 +231,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     //color = pow( color, vec3( 1.0f / 2.2 ) );
 
 
-    return  vec4<f32>( vec3(color), 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
+    //return  vec4<f32>( vec3(color), 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
+
+
+    return vec4<f32>(reflection, 1.0);
 }
 ";
-// struct ModelUniform {
-//     model_matrix : mat4x4<f32>,
-
-//     light_position : vec3<f32>,
-//     light_intensity : f32,
-
-//     ambient : vec3<f32>,
-
-//     albedo : vec3<f32>,
-//     roughness : f32,
-//     metallic : f32,
 
 #[repr(C, align(256))]
 #[derive(Clone, Copy)]
@@ -298,6 +299,8 @@ impl PbrPipeline {
         albedo: &TextureBundle,
         metallic: &TextureBundle,
 
+        sky: &SkyRenderer,
+
         topology: PrimitiveTopology,
         enable_depth: bool,
     ) -> Self {
@@ -344,6 +347,12 @@ impl PbrPipeline {
             wgpu::ShaderStages::VERTEX_FRAGMENT,
             &metallic.view,
             &metallic.sampler,
+        );
+
+        texture_bind_group_factory.add_texture_sky_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &sky.iradiance_texture.view,
+            &sky.iradiance_texture.sampler,
         );
 
         let (texture_bind_group_layout, texture_bind_group) =

@@ -11,7 +11,10 @@ use pira_wgpu::{
     helpers::cameras::OrbitControls,
     helpers::geometry::{sphere, GeometryFactory},
     image,
-    pipelines::{self, pbr},
+    pipelines::{
+        self, pbr,
+        sky::{self, SkyRendererOptions},
+    },
     state::State,
 };
 use wgpu::TextureFormat;
@@ -23,6 +26,8 @@ struct MyExample {
     orbit_controls: OrbitControls,
 
     uniform: pipelines::pbr::PbrMaterialModelUniform,
+
+    sky_renderer: pipelines::sky::SkyRenderer,
 }
 
 impl Application for MyExample {
@@ -33,7 +38,10 @@ impl Application for MyExample {
         sphere.vertex_colors_from_normal();
         let sphere_mesh = pbr::PbrPipeline::get_buffers_from_geometry(state, &sphere.geometry);
 
-        let roughness_image = image::open("./assets/rustediron2_roughness.png")
+        let base_path =
+            std::path::Path::new("/Users/henrique/Documents/dev/rust/pira-wgpu/assets/");
+
+        let roughness_image = image::open(base_path.join("rustediron2_roughness.png"))
             .unwrap()
             .to_rgba8();
 
@@ -52,7 +60,7 @@ impl Application for MyExample {
             roughness_image.as_bytes(),
         );
 
-        let albedo_image = image::open("./assets/rustediron2_basecolor.png")
+        let albedo_image = image::open(base_path.join("rustediron2_basecolor.png"))
             .unwrap()
             .to_rgba8();
 
@@ -71,7 +79,7 @@ impl Application for MyExample {
             albedo_image.as_bytes(),
         );
 
-        let metallic_image = image::open("./assets/rustediron2_metallic.png")
+        let metallic_image = image::open(base_path.join("rustediron2_metallic.png"))
             .unwrap()
             .to_rgba8();
 
@@ -90,22 +98,41 @@ impl Application for MyExample {
             metallic_image.as_bytes(),
         );
 
+        let image = image::open(
+            "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/buikslotermeerplein_1k.exr",
+            // "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/cubemap-equi.png",
+        )
+        .unwrap();
+
+        let sky_renderer = sky::SkyRenderer::new(
+            state,
+            &image,
+            SkyRendererOptions {
+                dst_size: 1024,
+                ..Default::default()
+            },
+        );
+
         let pipeline = pipelines::pbr::PbrPipeline::new_with_texture(
             state,
             &roughness_bundle,
             &albedo_bundle,
             &metallic_bundle,
+            &sky_renderer,
             wgpu::PrimitiveTopology::TriangleList,
             true,
         );
 
         let mut uniform = pipelines::pbr::PbrMaterialModelUniform::new(glam::Mat4::IDENTITY);
         uniform.light_intensity = 5.0;
+
         Self {
             pipeline,
             mesh: sphere_mesh,
             orbit_controls: OrbitControls::new(state.window_size.aspect_ratio()),
             uniform,
+
+            sky_renderer,
         }
     }
 
@@ -114,7 +141,32 @@ impl Application for MyExample {
     }
 
     fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {
+        let State { device, queue, .. } = state;
+
         self.orbit_controls.update();
+
+        let view_pos = glam::Vec4::from((self.orbit_controls.get_local_position(), 1.0));
+        let view_mat = self.orbit_controls.get_view_matrix();
+        let view_proj_mat = self.orbit_controls.get_perspective_view_matrix(); // self.orbit_controls.get_view_matrix();
+
+        let uniform: sky::Uniform = sky::Uniform {
+            view_pos: view_pos.to_array(),
+            view: view_mat.to_cols_array(),
+            view_proj: view_proj_mat.to_cols_array(),
+            inv_proj: self
+                .orbit_controls
+                .get_perspective_matrix()
+                .inverse()
+                .to_cols_array(),
+            inv_view: view_mat.inverse().to_cols_array(),
+        };
+
+        pipelines::write_uniform_buffer(
+            &[uniform],
+            &self.sky_renderer.uniform_buffer,
+            queue,
+            device,
+        );
     }
 
     fn on_gui(&mut self, egui_ctx: &mut framework::EguiLayer) {
@@ -178,7 +230,14 @@ impl Application for MyExample {
     }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        let MyExample { pipeline, mesh, .. } = &self;
+        let MyExample {
+            pipeline,
+            mesh,
+            sky_renderer,
+            ..
+        } = &self;
+
+        sky_renderer.draw(render_pass);
 
         render_pass.set_pipeline(&pipeline.pipeline);
         self.orbit_controls.get_perspective_view_matrix();

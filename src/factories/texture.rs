@@ -118,10 +118,13 @@ impl<'a> Texture2dFactory<'a> {
             label: texture_options.label,
         };
 
-        let texture =
+        let texture = if data.len() == 0 {
+            state.device.create_texture(&texture_descriptor)
+        } else {
             state
                 .device
-                .create_texture_with_data(&state.queue, &texture_descriptor, &data);
+                .create_texture_with_data(&state.queue, &texture_descriptor, &data)
+        };
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = state.device.create_sampler(&sampler_descriptor);
