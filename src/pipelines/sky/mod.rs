@@ -43,12 +43,12 @@ impl SkyRenderer {
     pub fn create_cube_map_textures_from_equi(
         state: &State,
         image: &image::DynamicImage,
-        options: SkyRendererOptions,
+        options: &SkyRendererOptions,
     ) -> TextureBundle {
         let State { device, queue, .. } = state;
 
         let image = image.to_rgba32f();
-        let SkyRendererOptions { label, dst_size } = options;
+        let SkyRendererOptions { label, dst_size } = *options;
 
         // This will be the result bundle image
         // TODO: create this texture via the texture factory
@@ -194,7 +194,161 @@ impl SkyRenderer {
         };
     }
 
-    pub fn create_iradiance_map(state: &State, input: &TextureBundle) -> TextureBundle {
+    pub fn create_irradiance_map_from_env(
+        state: &State,
+        image: &image::DynamicImage,
+        options: &SkyRendererOptions, //make options clonable instead of reference,
+    ) -> TextureBundle {
+        let State { device, queue, .. } = state;
+
+        let image = image.to_rgba32f();
+        let SkyRendererOptions { label, dst_size } = *options;
+
+        // This will be the result bundle image
+        // TODO: create this texture via the texture factory
+        let cube_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label,
+            size: wgpu::Extent3d {
+                width: 128,
+                height: 128,
+                depth_or_array_layers: 6,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::STORAGE_BINDING,
+            view_formats: &[],
+        });
+
+        let cube_view = cube_texture.create_view(&wgpu::TextureViewDescriptor {
+            label: Some("SKy texture view"),
+            dimension: Some(wgpu::TextureViewDimension::Cube),
+            array_layer_count: Some(6),
+            ..Default::default()
+        });
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label,
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        // -------- Compute shader pipeline -----------
+        let shader_module = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("Equirectangular to cubemap compute"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance.wgsl").into()),
+        });
+
+        //create equirectangular texture
+        let env_texture_bundle = factories::Texture2dFactory::new_with_options(
+            state,
+            [image.width(), image.height()],
+            Texture2dOptions {
+                format: wgpu::TextureFormat::Rgba32Float,
+                ..Default::default()
+            },
+            SamplerOptions {
+                filter: wgpu::FilterMode::Nearest,
+                address_mode: wgpu::AddressMode::Repeat,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+            },
+            &image.as_bytes(),
+        );
+
+        let compute_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("HDR: equirect layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        format: wgpu::TextureFormat::Rgba32Float,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        // TODO: Create pipeline layout via factory functions -----
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&compute_layout],
+            push_constant_ranges: &[],
+        });
+
+        let equirect_to_cubemap =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("equirect_to_cubemap"),
+                layout: Some(&pipeline_layout),
+                module: &shader_module,
+                entry_point: "calc_iradiance",
+            });
+
+        let dst_view = cube_texture.create_view(&TextureViewDescriptor {
+            label,
+            dimension: Some(wgpu::TextureViewDimension::D2Array),
+            ..Default::default()
+        });
+
+        // TODO: Create bind groups via factory functions -----
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label,
+            layout: &compute_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&env_texture_bundle.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&dst_view),
+                },
+            ],
+        });
+
+        let mut encoder = device.create_command_encoder(&Default::default());
+        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label,
+            timestamp_writes: None,
+        });
+
+        let num_workgroups = (dst_size + 15) / 16;
+        pass.set_pipeline(&equirect_to_cubemap);
+        pass.set_bind_group(0, &bind_group, &[]);
+        pass.dispatch_workgroups(num_workgroups, num_workgroups, 6);
+
+        drop(pass);
+
+        queue.submit([encoder.finish()]);
+
+        return TextureBundle {
+            sampler,
+            view: cube_view,
+            texture: cube_texture,
+        };
+    }
+
+    pub fn _create_iradiance_map(state: &State, input: &TextureBundle) -> TextureBundle {
         let State { device, queue, .. } = state;
         let label = Some("create_iradiance_map");
 
@@ -239,7 +393,7 @@ impl SkyRenderer {
 
         let shader_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("shader_iradiance compute"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_iradiance.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance.wgsl").into()),
         });
 
         let compute_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -335,9 +489,9 @@ impl SkyRenderer {
     pub fn new(state: &State, image: &image::DynamicImage, options: SkyRendererOptions) -> Self {
         let State { device, .. } = state;
 
-        let textures = SkyRenderer::create_cube_map_textures_from_equi(state, image, options);
+        let textures = SkyRenderer::create_cube_map_textures_from_equi(state, image, &options);
 
-        let iradiance_texture = SkyRenderer::create_iradiance_map(state, &textures);
+        let iradiance_texture = SkyRenderer::create_irradiance_map_from_env(state, image, &options);
 
         let uniform_buffer = pipelines::create_uniform_buffer::<Uniform>(1, device);
 

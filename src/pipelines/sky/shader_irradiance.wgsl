@@ -8,12 +8,19 @@ struct Face {
 
 @group(0)
 @binding(0)
-var src: texture_2d_array<f32>;
+var src: texture_2d<f32>;
 
 @group(0)
 @binding(1)
 var dst: texture_storage_2d_array<rgba32float, write>;
 
+
+fn sphericalToEquirectangular(spherical : vec3f) -> vec2f
+{
+    let inv_atan = vec2(0.1591, 0.3183);
+    let eq_uv = vec2(atan2(spherical.z, spherical.x), asin(spherical.y)) * inv_atan + 0.5;
+    return eq_uv;
+}  
 
 @compute
 @workgroup_size(16, 16, 1)
@@ -22,7 +29,7 @@ fn calc_iradiance(
     gid: vec3<u32>,
 ) {
 
-    var FACES: array<Face, 6> = array(
+  var FACES: array<Face, 6> = array(
         // FACES +X
         Face(
             vec3(1.0, 0.0, 0.0),  // forward
@@ -61,18 +68,18 @@ fn calc_iradiance(
         ),
     );
 
+
     // Get texture coords relative to cubemap face
+    let src_dimensions = vec2<f32>(textureDimensions(src));
     let dst_dimensions = vec2<f32>(textureDimensions(dst));
-    let cube_uv = vec2<f32>(gid.xy) / dst_dimensions * 2.0 - 1.0;
+    let cube_uv = (vec2<f32>(gid.xy) / dst_dimensions) * 2.0 - 1.0;
 
     // Get spherical coordinate from cube_uv
     let face = FACES[gid.z];
-    let normal = normalize(face.forward + face.right * cube_uv.x + face.up * cube_uv.y);
+    let normal = normalize(face.forward + face.right * cube_uv.x + face.up * cube_uv.y) * -1.0;
 
 
     // Compute iradiance
-    
-
     var irradiance = vec3(0.0);
     var up = vec3(0.0, 1.0, 0.0);
     var right = normalize(cross(up, normal));
@@ -80,17 +87,21 @@ fn calc_iradiance(
     var sampleDelta = 0.025;
     var nSamples = 0.0;
 
-    for(var phi = 0.0; phi < 2.0 * PI; phi += sampleDelta){
-        for(var theta = 0.0; theta <  PI * 0.5; theta += sampleDelta){   
+    // var uv = sphericalToEquirectangular(normal) * src_dimensions;
+    // irradiance += textureLoad(src, vec2<i32>(uv.xy), 0).rgb;
+
+    for(var phi = 0.0; phi < PI * 2.0; phi += sampleDelta){
+        for(var theta = 0.0; theta < PI * 0.5; theta += sampleDelta){   
             var tangentSample = vec3<f32>(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
             var sampleVec = tangentSample.x * right + tangentSample.y + up * tangentSample.z * normal;
 
-            irradiance += textureLoad(src, gid.xy, gid.z, 0).rgb * cos(theta) * sin(theta);
+            var uv = sphericalToEquirectangular(normalize(sampleVec)) * src_dimensions;
+
+            irradiance += textureLoad(src, vec2<i32>(uv.xy), 0).rgb * cos(theta) * sin(theta);
             nSamples += 1.0;
         }
     }
-    
-    irradiance = irradiance / nSamples; // PI * irradiance * (1.0 / f32(nSamples));
+    irradiance =  PI * irradiance * (1.0 / f32(nSamples));
 
     textureStore(dst, gid.xy, gid.z, vec4(irradiance, 1.0));
 }
