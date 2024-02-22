@@ -1,43 +1,68 @@
 struct VertexOutput {
-    @builtin(position) frag_position  : vec4<f32>,
-    @location(0) clip_position: vec4<f32>,
+    @builtin(position) clip_position  : vec4<f32>,
+    @location(0) cube_coords : vec3<f32>,
 }
 @vertex
-fn vs_main(@builtin(vertex_index) id: u32) -> VertexOutput {
-    let uv = vec2<f32>(vec2<u32>(
-        id & 1u,
-        (id >> 1u) & 1u,
-    ));
-    var out: VertexOutput;
-    // out.clip_position = vec4(uv * vec2(4.0, -4.0) + vec2(-1.0, 1.0), 0.0, 1.0);
-    out.clip_position = vec4(uv * 4.0 - 1.0, 0.9, 1.0);
-    out.frag_position = vec4(uv * 4.0 - 1.0, 0.9, 1.0)
+fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
+    var vertices = array<vec4<f32>, 6>(
+        vec4<f32>(-1.0, 1.0, 0.0, 1.0),
+        vec4<f32>(-1.0, -1.0, 0.0, 1.0),
+        vec4<f32>(1.0, -1.0, 0.0, 1.0),
+
+        vec4<f32>(1.0, 1.0, 0.0, 1.0),
+        vec4<f32>(-1.0, 1.0, 0.0, 1.0),
+        vec4<f32>(1.0, -1.0, 0.0, 1.0)
+    );
+
+    var cube_coords = array<vec3<f32>, 6>(
+        vec3<f32>(-1.0, 1.0, -1.0 ),
+        vec3<f32>(-1.0, -1.0, -1.0 ),
+        vec3<f32>(1.0, -1.0, -1.0 ),
+
+        vec3<f32>(1.0, 1.0, -1.0 ),
+        vec3<f32>(-1.0, 1.0, -1.0),
+        vec3<f32>(1.0, -1.0, -1.0 )
+    );
+
+    var out : VertexOutput;
+    out.clip_position = vertices[in_vertex_index];
+    out.cube_coords = cube_coords[in_vertex_index];
 
     return out;
 }
 
-struct CameraUniform {
-    view_pos: vec4<f32>,
-    view: mat4x4<f32>,
-    view_proj: mat4x4<f32>,
-    inv_proj: mat4x4<f32>,
-    inv_view: mat4x4<f32>,
-};
-
 @group(0) @binding(0)
-var env_map: texture_cube<f32>;
+var hdr_texture: texture_2d<f32>;
 @group(0) @binding(1)
-var env_sampler: sampler;
+var hdr_sampler: sampler;
 
-@group(0) @binding(2)
-var<uniform> camera : CameraUniform;
+
+// Rotation matrix around the X axis.
+fn rotateX(theta : f32) -> mat3x3<f32> {
+    var c = cos(theta);
+    var s = sin(theta);
+    return mat3x3<f32>(
+        vec3(1.0, 0.0, 0.0),
+        vec3(0.0, c, -s),
+        vec3(0.0, s, c)
+    );
+}
+
+const invAtan : vec2<f32> = vec2<f32>(0.1591, 0.3183);
+fn SampleSphericalMap(v : vec3<f32>) -> vec2<f32>
+{
+    var uv = vec2<f32>(atan2(v.z, v.x), asin(v.y));
+    uv *= invAtan;
+    uv += 0.5;
+    return uv;
+}
 
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
-    let view_pos_homogeneous = camera.inv_proj * in.clip_position;
-    let view_ray_direction = view_pos_homogeneous.xyz / view_pos_homogeneous.w;
-    var ray_direction = normalize((camera.inv_view * vec4(view_ray_direction, 0.0)).xyz);
 
-    let sample = textureSample(env_map, env_sampler, ray_direction);
-    return sample;
+    var spherical_coord = normalize( rotateX(3.14) * in.cube_coords);
+    var cube_uv = SampleSphericalMap(spherical_coord);
+
+    var texture_color = textureLoad(hdr_texture, vec2<i32>(cube_uv * vec2<f32>(1024.0, 512.0)), 0);
+    return texture_color;
  }

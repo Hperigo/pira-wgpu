@@ -199,6 +199,7 @@ impl SkyRenderer {
         image: &image::DynamicImage,
         options: &SkyRendererOptions, //make options clonable instead of reference,
     ) -> TextureBundle {
+        todo!("Doesnt work!");
         let State { device, queue, .. } = state;
 
         let image = image.to_rgba32f();
@@ -244,7 +245,7 @@ impl SkyRenderer {
         // -------- Compute shader pipeline -----------
         let shader_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Equirectangular to cubemap compute"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance_compute.wgsl").into()),
         });
 
         //create equirectangular texture
@@ -392,8 +393,8 @@ impl SkyRenderer {
         });
 
         let shader_module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("shader_iradiance compute"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance.wgsl").into()),
+            label: Some("shader_iradiance cubemap"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance_cubemap.wgsl").into()),
         });
 
         let compute_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
