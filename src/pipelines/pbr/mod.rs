@@ -194,7 +194,6 @@ impl PbrPipeline {
 
         //Vertex Colors ---
         let vcolors_option: Option<&Vec<f32>> = geo_data.attributes.get(&attribute_names::COLOR);
-        println!("{:?}", vcolors_option);
         if let Some(vcolor) = vcolors_option {
             let mut index = 0;
             for i in 0..vertices.len() {
@@ -204,8 +203,6 @@ impl PbrPipeline {
                     vcolor[index + 2],
                     vcolor[index + 3],
                 ];
-
-                println!("Color: {:?}", vertices[i]);
                 index += 4;
             }
         }
@@ -214,7 +211,6 @@ impl PbrPipeline {
 
         let normals_option = geo_data.attributes.get(&attribute_names::NORMALS);
         if let Some(normals) = normals_option {
-            println!("NORMALS!");
             let mut normal_index = 0;
             for i in 0..vertices.len() {
                 vertices[i].normal = [

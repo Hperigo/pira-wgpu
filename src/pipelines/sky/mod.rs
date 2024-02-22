@@ -1,4 +1,4 @@
-use crate::factories::texture::{SamplerOptions, Texture2dOptions, TextureBundle};
+use crate::factories::texture::{self, SamplerOptions, Texture2dOptions, TextureBundle};
 
 use crate::helpers::cameras;
 use crate::state::State;
@@ -348,7 +348,7 @@ impl SkyRenderer {
         };
     }
 
-    pub fn _create_iradiance_map(state: &State, input: &TextureBundle) -> TextureBundle {
+    pub fn create_iradiance_map(state: &State, input: &TextureBundle) -> TextureBundle {
         let State { device, queue, .. } = state;
         let label = Some("create_iradiance_map");
 
@@ -491,7 +491,7 @@ impl SkyRenderer {
 
         let textures = SkyRenderer::create_cube_map_textures_from_equi(state, image, &options);
 
-        let iradiance_texture = SkyRenderer::create_irradiance_map_from_env(state, image, &options);
+        let iradiance_texture = SkyRenderer::create_iradiance_map(state, &textures); //SkyRenderer::create_irradiance_map_from_env(state, image, &options);
 
         let uniform_buffer = pipelines::create_uniform_buffer::<Uniform>(1, device);
 
