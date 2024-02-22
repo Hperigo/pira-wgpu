@@ -32,9 +32,15 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
 }
 
 @group(0) @binding(0)
-var hdr_texture: texture_2d<f32>;
+var env_map: texture_cube<f32>;
 @group(0) @binding(1)
-var hdr_sampler: sampler;
+var env_sampler: sampler;
+
+
+const PI : f32 = 3.14159265359;
+
+@group(0) @binding(2)
+var<uniform> rotation_matrix : mat4x4<f32>;
 
 
 // Rotation matrix around the X axis.
@@ -60,9 +66,12 @@ fn SampleSphericalMap(v : vec3<f32>) -> vec2<f32>
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
-    var spherical_coord = normalize( rotateX(3.14) * in.cube_coords);
+    var spherical_coord = normalize(  in.cube_coords);
     var cube_uv = SampleSphericalMap(spherical_coord);
 
-    var texture_color = textureLoad(hdr_texture, vec2<i32>(cube_uv * vec2<f32>(1024.0, 512.0)), 0);
+
+    var coords = normalize( rotation_matrix * vec4(in.cube_coords, 1.0));
+
+    var texture_color = textureSample(env_map, env_sampler, coords.xyz);
     return texture_color;
  }
