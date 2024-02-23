@@ -1,9 +1,35 @@
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) pad : vec3<f32>,
+};
+
+// struct ModelUniform {
+//     model_matrix : mat4x4<f32>,
+//     //TODO: add tint color
+// }
+
+@group(0) @binding(0)
+var env_map: texture_cube<f32>;
+@group(0) @binding(1)
+var env_sampler: sampler;
+
+@group(0) @binding(2) // 1.
+var<uniform> camera: mat4x4<f32>;
+
+// @group(0) @binding(1) // 1.
+// var<uniform> modelUniform: ModelUniform;
+
+
+
+
 struct VertexOutput {
     @builtin(position) clip_position  : vec4<f32>,
     @location(0) cube_coords : vec3<f32>,
 }
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
+fn vs_main( model : VertexInput ) -> VertexOutput {
     var vertices = array<vec4<f32>, 6>(
         vec4<f32>(-1.0, 1.0, 0.9, 1.0),
         vec4<f32>(-1.0, -1.0, 0.9, 1.0),
@@ -24,23 +50,20 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> VertexOutput {
         vec3<f32>(1.0, -1.0, -1.0 )
     );
 
-    var out : VertexOutput;
-    out.clip_position = vertices[in_vertex_index];
-    out.cube_coords = cube_coords[in_vertex_index];
+    var pos = camera * vec4(model.position, 1.0);
 
+    var out: VertexOutput;
+    out.clip_position = pos;
+    out.cube_coords = pos.xyz;
     return out;
 }
 
-@group(0) @binding(0)
-var env_map: texture_cube<f32>;
-@group(0) @binding(1)
-var env_sampler: sampler;
 
 
 const PI : f32 = 3.14159265359;
 
-@group(0) @binding(2)
-var<uniform> rotation_matrix : mat4x4<f32>;
+// @group(0) @binding(2)
+// var<uniform> rotation_matrix : mat4x4<f32>;
 
 
 // Rotation matrix around the X axis.
@@ -66,39 +89,41 @@ fn SampleSphericalMap(v : vec3<f32>) -> vec2<f32>
 @fragment
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
-    var spherical_coord = normalize(  in.cube_coords);
-    //var cube_uv = SampleSphericalMap(spherical_coord);
+    // var spherical_coord = normalize(  in.cube_coords);
+    // //var cube_uv = SampleSphericalMap(spherical_coord);
 
 
-    var coords = normalize(rotation_matrix * vec4(in.cube_coords, 1.0));
+    // var coords = normalize( vec4(in.cube_coords, 1.0));
 
-    var normal = coords.xyz;
-    var irradiance = vec3(0.0);
-    var up = vec3(0.0, 0.0, 1.0);
-    var right = normalize(cross(up, normal));
-    //up = cross(normal, right);
-
-
-    var sampleDelta = 0.05;
-    var nSamples = 0.0;
-
-    // var uv = sphericalToEquirectangular(normal) * src_dimensions;
-    // irradiance += textureLoad(src, vec2<i32>(uv.xy), 0).rgb;
-
-    for(var phi = 0.0; phi < PI * 2.0; phi += sampleDelta){
-        for(var theta = 0.0; theta < PI * 0.5; theta += sampleDelta){   
-            var tangentSample = vec3<f32>(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
-            var sampleVec = tangentSample.x * right + tangentSample.y + up * tangentSample.z * normal;
-
-            var uv = sampleVec;
-
-            irradiance += textureSample(env_map, env_sampler, uv.xyz).rgb * cos(theta) * sin(theta);
-            nSamples += 1.0;
-        }
-    }
-    irradiance =  PI * irradiance * (1.0 / f32(nSamples));
+    // var normal = coords.xyz;
+    // var irradiance = vec3(0.0);
+    // var up = vec3(0.0, 0.0, 1.0);
+    // var right = normalize(cross(up, normal));
+    // //up = cross(normal, right);
 
 
-    var texture_color = vec4(irradiance.xyz, 1.0);// textureSample(env_map, env_sampler, coords.xyz);
+    // var sampleDelta = 0.05;
+    // var nSamples = 0.0;
+
+    // // var uv = sphericalToEquirectangular(normal) * src_dimensions;
+    // // irradiance += textureLoad(src, vec2<i32>(uv.xy), 0).rgb;
+
+    // for(var phi = 0.0; phi < PI * 2.0; phi += sampleDelta){
+    //     for(var theta = 0.0; theta < PI * 0.5; theta += sampleDelta){   
+    //         var tangentSample = vec3<f32>(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+    //         var sampleVec = tangentSample.x * right + tangentSample.y + up * tangentSample.z * normal;
+
+    //         var uv = sampleVec;
+
+    //         irradiance += textureSample(env_map, env_sampler, uv.xyz).rgb * cos(theta) * sin(theta);
+    //         nSamples += 1.0;
+    //     }
+    // }
+    // irradiance =  PI * irradiance * (1.0 / f32(nSamples));
+
+
+    // var texture_color = vec4(irradiance.xyz, 1.0);// textureSample(env_map, env_sampler, coords.xyz);
+
+    var texture_color = vec4(in.cube_coords, 1.0);
     return texture_color;
  }

@@ -9,8 +9,9 @@ use crate::state::State;
 use crate::{factories, pipelines};
 use image::EncodableLayout;
 use wgpu::{
-    BufferBinding, PipelineLayoutDescriptor, RenderPipelineDescriptor, SamplerDescriptor,
-    ShaderModuleDescriptor, ShaderStages, TextureViewDescriptor, TextureViewDimension,
+    vertex_attr_array, BufferBinding, PipelineLayoutDescriptor, RenderPipelineDescriptor,
+    SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, TextureViewDescriptor,
+    TextureViewDimension, VertexBufferLayout,
 };
 
 /*
@@ -381,7 +382,7 @@ impl SkyRenderer {
         } = state;
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Equirectangular to cubemap compute"),
+            label: Some("Equirectangular to cubemap shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance_cubemap.wgsl").into()),
         });
 
@@ -397,7 +398,7 @@ impl SkyRenderer {
 
         let (bind_group_layout, bind_group) = factories::BindGroupFactory::new()
             .add_texture_sky_sampler(wgpu::ShaderStages::FRAGMENT, &input.view, &input.sampler)
-            .add_uniform(ShaderStages::FRAGMENT, &uniform_buffer, None)
+            .add_uniform(ShaderStages::VERTEX, &uniform_buffer, None)
             .build(device);
 
         let pipeline_layout = PipelineLayoutDescriptor {
@@ -407,20 +408,29 @@ impl SkyRenderer {
         };
         println!("=======");
 
+        let vertex_attribs = shadeless::ShadelessPipeline::get_vertex_attrib_layout_array();
+
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&device.create_pipeline_layout(&pipeline_layout)),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[],
+                buffers: &[VertexBufferLayout {
+                    array_stride: shadeless::ShadelessPipeline::get_array_stride(),
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &vertex_attribs,
+                }],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[Some(wgpu::TextureFormat::Rgba8UnormSrgb.into())],
+                targets: &[Some(wgpu::TextureFormat::Rgba8UnormSrgb.into())], //TODO! change this to HDR
             }),
-            primitive: wgpu::PrimitiveState::default(),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                ..Default::default()
+            }, //wgpu::PrimitiveState::default(),
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
@@ -445,37 +455,46 @@ impl SkyRenderer {
         });
 
         let matrices = [
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(1.0, 0.0, 0.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(-1.0, 0.0, 0.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, 1.0, 0.0),
-                glam::vec3(0.0, 0.0, -1.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, -1.0, 0.0),
-                glam::vec3(0.0, 0.0, 1.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, 0.0, 1.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, 0.0, -1.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
+            glam::Mat4::IDENTITY,
+            glam::Mat4::IDENTITY,
+            glam::Mat4::IDENTITY,
+            glam::Mat4::IDENTITY,
+            glam::Mat4::IDENTITY,
+            glam::Mat4::IDENTITY,
         ];
+
+        // let matrices = [
+        //     glam::Mat4::look_at_rh(
+        //         glam::Vec3::ZERO,
+        //         glam::vec3(1.0, 0.0, 0.0),
+        //         glam::vec3(0.0, 1.0, 0.0),
+        //     ),
+        //     glam::Mat4::look_at_rh(
+        //         glam::Vec3::ZERO,
+        //         glam::vec3(-1.0, 0.0, 0.0),
+        //         glam::vec3(0.0, 1.0, 0.0),
+        //     ),
+        //     glam::Mat4::look_at_rh(
+        //         glam::Vec3::ZERO,
+        //         glam::vec3(0.0, 1.0, 0.0),
+        //         glam::vec3(0.0, 0.0, -1.0),
+        //     ),
+        //     glam::Mat4::look_at_rh(
+        //         glam::Vec3::ZERO,
+        //         glam::vec3(0.0, -1.0, 0.0),
+        //         glam::vec3(0.0, 0.0, 1.0),
+        //     ),
+        //     glam::Mat4::look_at_rh(
+        //         glam::Vec3::ZERO,
+        //         glam::vec3(0.0, 0.0, 1.0),
+        //         glam::vec3(0.0, 1.0, 0.0),
+        //     ),
+        //     glam::Mat4::look_at_rh(
+        //         glam::Vec3::ZERO,
+        //         glam::vec3(0.0, 0.0, -1.0),
+        //         glam::vec3(0.0, 1.0, 0.0),
+        //     ),
+        // ];
 
         for i in 0..6 {
             pipelines::write_uniform_buffer(matrices[i].as_ref(), &uniform_buffer, queue, device);
@@ -508,6 +527,9 @@ impl SkyRenderer {
                     });
                 render_pass.set_pipeline(&pipeline);
                 render_pass.set_bind_group(0, &bind_group, &[0]);
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass
+                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw(0..6, 0..1);
             }
             queue.submit(Some(command_encoder.finish()));
