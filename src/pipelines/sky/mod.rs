@@ -2,7 +2,9 @@ use std::default;
 
 use crate::factories::texture::{self, SamplerOptions, Texture2dOptions, TextureBundle};
 
-use crate::helpers::cameras;
+use crate::helpers::geometry::{cube, GeometryFactory};
+use crate::helpers::{self, cameras};
+use crate::pipelines::shadeless;
 use crate::state::State;
 use crate::{factories, pipelines};
 use image::EncodableLayout;
@@ -383,6 +385,11 @@ impl SkyRenderer {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance_cubemap.wgsl").into()),
         });
 
+        let mut cube_geo = helpers::geometry::cube::Cube::new(1.0);
+        cube_geo.texture_coords();
+        let mesh =
+            shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube_geo.geometry);
+
         let uniform_buffer = pipelines::create_uniform_buffer::<glam::Mat4>(1, device);
 
         let rotation_matrix: glam::Mat4 = glam::Mat4::IDENTITY;
@@ -438,12 +445,36 @@ impl SkyRenderer {
         });
 
         let matrices = [
-            glam::Mat4::IDENTITY,
-            glam::Mat4::from_axis_angle(glam::vec3(0.0, 1.0, 0.0), std::f32::consts::PI),
-            glam::Mat4::from_axis_angle(glam::vec3(1.0, 0.0, 0.0), std::f32::consts::PI / 2.0), // top
-            glam::Mat4::from_axis_angle(glam::vec3(1.0, 0.0, 0.0), std::f32::consts::PI / -2.0), // bottom
-            glam::Mat4::from_axis_angle(glam::vec3(0.0, 1.0, 0.0), std::f32::consts::PI / 2.0),
-            glam::Mat4::from_axis_angle(glam::vec3(0.0, 1.0, 0.0), std::f32::consts::PI / -2.0),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(1.0, 0.0, 0.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(-1.0, 0.0, 0.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 1.0, 0.0),
+                glam::vec3(0.0, 0.0, -1.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, -1.0, 0.0),
+                glam::vec3(0.0, 0.0, 1.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 0.0, 1.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 0.0, -1.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
         ];
 
         for i in 0..6 {
