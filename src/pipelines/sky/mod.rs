@@ -2,16 +2,17 @@ use std::default;
 
 use crate::factories::texture::{self, SamplerOptions, Texture2dOptions, TextureBundle};
 
+use crate::factories::{BindGroupFactory, RenderPipelineFactory};
 use crate::helpers::geometry::{cube, GeometryFactory};
 use crate::helpers::{self, cameras};
-use crate::pipelines::shadeless;
+use crate::pipelines::shadeless::{self, ShadelessPipeline};
 use crate::state::State;
 use crate::{factories, pipelines};
 use image::EncodableLayout;
 use wgpu::{
-    vertex_attr_array, BufferBinding, PipelineLayoutDescriptor, RenderPipelineDescriptor,
-    SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, TextureViewDescriptor,
-    TextureViewDimension, VertexBufferLayout,
+    vertex_attr_array, BufferBinding, PipelineLayoutDescriptor, PrimitiveTopology, RenderPipeline,
+    RenderPipelineDescriptor, SamplerDescriptor, ShaderModuleDescriptor, ShaderStages,
+    TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
 };
 
 /*
@@ -388,6 +389,7 @@ impl SkyRenderer {
 
         let mut cube_geo = helpers::geometry::cube::Cube::new(1.0);
         cube_geo.texture_coords();
+
         let mesh =
             shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube_geo.geometry);
 
@@ -396,52 +398,55 @@ impl SkyRenderer {
         let rotation_matrix: glam::Mat4 = glam::Mat4::IDENTITY;
         pipelines::write_uniform_buffer(rotation_matrix.as_ref(), &uniform_buffer, queue, device);
 
-        let (bind_group_layout, bind_group) = factories::BindGroupFactory::new()
-            .add_texture_sky_sampler(wgpu::ShaderStages::FRAGMENT, &input.view, &input.sampler)
-            .add_uniform(ShaderStages::VERTEX, &uniform_buffer, None)
-            .build(device);
+        let attribs = ShadelessPipeline::get_vertex_attrib_layout_array();
+        let stride = std::mem::size_of::<shadeless::Vertex>() as u64;
 
-        let pipeline_layout = PipelineLayoutDescriptor {
-            label: Some("Equirectangular-pipeline"),
-            bind_group_layouts: &[&bind_group_layout],
-            ..Default::default()
-        };
-        println!("=======");
+        let global_uniform_buffer = pipelines::create_global_uniform(&state.device);
+        let model_uniform_buffer =
+            pipelines::create_uniform_buffer::<pipelines::ModelUniform>(1, &state.device);
 
-        let vertex_attribs = shadeless::ShadelessPipeline::get_vertex_attrib_layout_array();
+        let mut bind_factory = BindGroupFactory::new();
+        bind_factory.add_uniform(
+            wgpu::ShaderStages::VERTEX,
+            &global_uniform_buffer,
+            wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
+        );
+        bind_factory.add_uniform(
+            wgpu::ShaderStages::VERTEX,
+            &model_uniform_buffer,
+            wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
+        );
+        let (bind_group_layout, bind_group) = bind_factory.build(&state.device);
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&device.create_pipeline_layout(&pipeline_layout)),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[VertexBufferLayout {
-                    array_stride: shadeless::ShadelessPipeline::get_array_stride(),
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &vertex_attribs,
-                }],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::TextureFormat::Rgba8UnormSrgb.into())], //TODO! change this to HDR
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            }, //wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
+        let mut texture_bind_group_factory: BindGroupFactory<'_> = BindGroupFactory::new();
+        texture_bind_group_factory.add_texture_sky_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &input.view,
+            &input.sampler, // TODO!: improve input name to view
+        );
+        let (texture_bind_group_layout, texture_bind_group) =
+            texture_bind_group_factory.build(&state.device);
+
+        let mut pipeline_factory = RenderPipelineFactory::new();
+        pipeline_factory.set_label("Diffuse convolution pipeline");
+        pipeline_factory.add_vertex_attributes(&attribs, stride);
+        pipeline_factory.set_sample_count(Some(1));
+        // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
+        pipeline_factory.set_color_target_format(Some(wgpu::TextureFormat::Rgba8UnormSrgb));
+        pipeline_factory.set_topology(PrimitiveTopology::TriangleList);
+
+        let pipeline = pipeline_factory.create_render_pipeline(
+            &state,
+            &shader,
+            &[&bind_group_layout, &texture_bind_group_layout],
+        );
 
         //-----------------------------------------------
         let render_target = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
-                width: input.texture.width() as u32,
-                height: input.texture.height() as u32,
+                width: 256,  //input.texture.width() as u32,
+                height: 256, //input.texture.height() as u32,
                 depth_or_array_layers: 6,
             },
             mip_level_count: 1,
@@ -454,50 +459,61 @@ impl SkyRenderer {
             view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
         });
 
-        let matrices = [
-            glam::Mat4::IDENTITY,
-            glam::Mat4::IDENTITY,
-            glam::Mat4::IDENTITY,
-            glam::Mat4::IDENTITY,
-            glam::Mat4::IDENTITY,
-            glam::Mat4::IDENTITY,
-        ];
-
         // let matrices = [
-        //     glam::Mat4::look_at_rh(
-        //         glam::Vec3::ZERO,
-        //         glam::vec3(1.0, 0.0, 0.0),
-        //         glam::vec3(0.0, 1.0, 0.0),
-        //     ),
-        //     glam::Mat4::look_at_rh(
-        //         glam::Vec3::ZERO,
-        //         glam::vec3(-1.0, 0.0, 0.0),
-        //         glam::vec3(0.0, 1.0, 0.0),
-        //     ),
-        //     glam::Mat4::look_at_rh(
-        //         glam::Vec3::ZERO,
-        //         glam::vec3(0.0, 1.0, 0.0),
-        //         glam::vec3(0.0, 0.0, -1.0),
-        //     ),
-        //     glam::Mat4::look_at_rh(
-        //         glam::Vec3::ZERO,
-        //         glam::vec3(0.0, -1.0, 0.0),
-        //         glam::vec3(0.0, 0.0, 1.0),
-        //     ),
-        //     glam::Mat4::look_at_rh(
-        //         glam::Vec3::ZERO,
-        //         glam::vec3(0.0, 0.0, 1.0),
-        //         glam::vec3(0.0, 1.0, 0.0),
-        //     ),
-        //     glam::Mat4::look_at_rh(
-        //         glam::Vec3::ZERO,
-        //         glam::vec3(0.0, 0.0, -1.0),
-        //         glam::vec3(0.0, 1.0, 0.0),
-        //     ),
+        //     glam::Mat4::IDENTITY,
+        //     glam::Mat4::IDENTITY,
+        //     glam::Mat4::IDENTITY,
+        //     glam::Mat4::IDENTITY,
+        //     glam::Mat4::IDENTITY,
+        //     glam::Mat4::IDENTITY,
         // ];
 
+        let matrices = [
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(1.0, 0.0, 0.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(-1.0, 0.0, 0.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, -1.0, 0.0),
+                glam::vec3(0.0, 0.0, 1.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 1.0, 0.0),
+                glam::vec3(0.0, 0.0, -1.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 0.0, 1.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 0.0, -1.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+        ];
+
         for i in 0..6 {
-            pipelines::write_uniform_buffer(matrices[i].as_ref(), &uniform_buffer, queue, device);
+            pipelines::write_global_uniform_buffer(
+                glam::Mat4::IDENTITY,
+                &global_uniform_buffer,
+                &state.queue,
+            );
+
+            pipelines::write_uniform_buffer(
+                matrices[i].as_ref(),
+                &model_uniform_buffer,
+                &state.queue,
+                &state.device,
+            );
 
             let texture_view = render_target.create_view(&wgpu::TextureViewDescriptor {
                 dimension: Some(TextureViewDimension::D2),
@@ -526,11 +542,13 @@ impl SkyRenderer {
                         timestamp_writes: None,
                     });
                 render_pass.set_pipeline(&pipeline);
-                render_pass.set_bind_group(0, &bind_group, &[0]);
+                render_pass.set_bind_group(0, &bind_group, &[0, 0]);
+                render_pass.set_bind_group(1, &texture_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass
                     .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw(0..6, 0..1);
+                //  render_pass.draw(0..24, 0..1);
+                render_pass.draw_indexed(0..mesh.vertex_count, 0, 0..1);
             }
             queue.submit(Some(command_encoder.finish()));
         }
@@ -631,6 +649,8 @@ impl SkyRenderer {
         });
 
         let mut sky_render_pipeline = factories::RenderPipelineFactory::new();
+        sky_render_pipeline
+            .add_depth_stencil(factories::render_pipeline::DepthConfig::DefaultDontWrite);
         sky_render_pipeline.set_cull_mode(Some(wgpu::Face::Back));
 
         let pipeline =

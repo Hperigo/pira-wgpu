@@ -86,7 +86,8 @@ impl Application for MyExample {
         let stride = std::mem::size_of::<Vertex>() as u64;
         let mut pipeline_factory = RenderPipelineFactory::new();
         pipeline_factory.add_vertex_attributes(&attribs, stride);
-        pipeline_factory.add_depth_stencil();
+        pipeline_factory
+            .add_depth_stencil(pira_wgpu::factories::render_pipeline::DepthConfig::DefaultWrite);
 
         let pipeline =
             pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);

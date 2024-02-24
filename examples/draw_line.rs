@@ -222,7 +222,8 @@ impl Application for MyExample {
             std::mem::size_of::<glam::Vec2>() as u64,
         );
 
-        pipeline_factory.add_depth_stencil();
+        pipeline_factory
+            .add_depth_stencil(pira_wgpu::factories::render_pipeline::DepthConfig::DefaultWrite);
 
         let c_shader_module = state
             .device
@@ -254,7 +255,8 @@ impl Application for MyExample {
         pipeline_factory
             .add_instance_attributes(&instance_attribs, std::mem::size_of::<glam::Vec2>() as u64);
 
-        pipeline_factory.add_depth_stencil();
+        pipeline_factory
+            .add_depth_stencil(pira_wgpu::factories::render_pipeline::DepthConfig::DefaultWrite);
 
         let pipeline =
             pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);

@@ -147,7 +147,8 @@ impl ShadelessPipeline {
         // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
 
         if enable_depth {
-            pipeline_factory.add_depth_stencil();
+            pipeline_factory
+                .add_depth_stencil(crate::factories::render_pipeline::DepthConfig::DefaultWrite);
         }
         pipeline_factory.set_topology(topology);
 
