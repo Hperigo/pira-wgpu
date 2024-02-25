@@ -1,5 +1,5 @@
 use crate::state::State;
-use wgpu::{DepthStencilState, PrimitiveTopology, ShaderModule, TextureFormat};
+use wgpu::{BlendState, DepthStencilState, PrimitiveTopology, ShaderModule, TextureFormat};
 
 #[derive(Debug)]
 pub enum DepthConfig {
@@ -9,10 +9,62 @@ pub enum DepthConfig {
     DefaultDontWrite,
 }
 
+impl DepthConfig {
+    pub fn get(&self) -> Option<DepthStencilState> {
+        match &self {
+            DepthConfig::None => None,
+            DepthConfig::Custom(depth_state) => Some(depth_state.clone()),
+            DepthConfig::DefaultWrite => {
+                Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24Plus,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less, // 1.
+                    stencil: wgpu::StencilState::default(),     // 2.
+                    bias: wgpu::DepthBiasState::default(),
+                })
+            }
+            DepthConfig::DefaultDontWrite => {
+                Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24Plus,
+                    depth_write_enabled: false,
+                    depth_compare: wgpu::CompareFunction::Less, // 1.
+                    stencil: wgpu::StencilState::default(),     // 2.
+                    bias: wgpu::DepthBiasState::default(),
+                })
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum BlendConfig {
+    None,
+    Custom(BlendState),
+    Default,
+}
+
+impl BlendConfig {
+    pub fn get(&self) -> Option<BlendState> {
+        match self {
+            BlendConfig::Default => Some(wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent::OVER,
+            }),
+            BlendConfig::Custom(custom) => Some(*custom),
+            BlendConfig::None => None,
+        }
+    }
+}
+
 pub struct RenderPipelineFactory<'a> {
     vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout<'a>>,
     // depth_config: Option<wgpu::DepthStencilState>,
     depth_config: DepthConfig,
+    blend_config: BlendConfig,
 
     vert_shader_entry: &'a str,
     frag_shader_entry: &'a str,
@@ -33,6 +85,7 @@ impl<'a> RenderPipelineFactory<'a> {
         RenderPipelineFactory {
             vertex_buffer_layouts: Vec::new(),
             depth_config: DepthConfig::None,
+            blend_config: BlendConfig::Default,
 
             vert_shader_entry: Self::default_vert_entry_point(),
             frag_shader_entry: Self::default_frag_entry_point(),
@@ -82,8 +135,13 @@ impl<'a> RenderPipelineFactory<'a> {
         self.vertex_buffer_layouts.push(vertex_layout);
     }
 
+    //TODO: rename to set_depth_config
     pub fn add_depth_stencil(&mut self, config: DepthConfig) {
         self.depth_config = config;
+    }
+
+    pub fn set_blend_config(&mut self, config: BlendConfig) {
+        self.blend_config = config;
     }
 
     pub fn set_sample_count(&mut self, sample_count: Option<u32>) {
@@ -112,30 +170,9 @@ impl<'a> RenderPipelineFactory<'a> {
         shader_module: &ShaderModule,
         bind_group_layout: &[&wgpu::BindGroupLayout],
     ) -> wgpu::RenderPipeline {
-        println!("Render Pipeline: {:?} {:?}", self.label, self.depth_config);
+        let depth_config = self.depth_config.get();
 
-        let depth_config = match &self.depth_config {
-            DepthConfig::None => None,
-            DepthConfig::Custom(depth_state) => Some(depth_state.clone()),
-            DepthConfig::DefaultWrite => {
-                Some(wgpu::DepthStencilState {
-                    format: wgpu::TextureFormat::Depth24Plus,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less, // 1.
-                    stencil: wgpu::StencilState::default(),     // 2.
-                    bias: wgpu::DepthBiasState::default(),
-                })
-            }
-            DepthConfig::DefaultDontWrite => {
-                Some(wgpu::DepthStencilState {
-                    format: wgpu::TextureFormat::Depth24Plus,
-                    depth_write_enabled: false,
-                    depth_compare: wgpu::CompareFunction::Less, // 1.
-                    stencil: wgpu::StencilState::default(),     // 2.
-                    bias: wgpu::DepthBiasState::default(),
-                })
-            }
-        };
+        let blend_config = self.blend_config.get();
 
         let sample_count = match &self.sample_count {
             Some(val) => *val,
@@ -170,14 +207,7 @@ impl<'a> RenderPipelineFactory<'a> {
 
             targets: &[Some(wgpu::ColorTargetState {
                 format: color_target_format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::SrcAlpha,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    alpha: wgpu::BlendComponent::OVER,
-                }),
+                blend: blend_config,
                 write_mask: wgpu::ColorWrites::ALL,
             })],
         };

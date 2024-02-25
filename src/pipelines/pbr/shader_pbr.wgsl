@@ -217,12 +217,5 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 	var whiteInputLevel = 10.0f;
 	var whiteScale			= 1.0f / Uncharted2Tonemap( vec3( whiteInputLevel ) );
 	color					= color * whiteScale;
-
-    //color = pow( color, vec3( 1.0f / 2.2 ) );
-
-
-   //` return  vec4<f32>( vec3(color), 1.0);// textureSample(t_diffuse, s_diffuse, in.uv) * vec4(in.normal, 1.0) * vec4(in.color, 1.0);
-
-
-    return vec4<f32>(irradiance, 1.0);
+    return vec4<f32>(color, 1.0);
 }

@@ -1,27 +1,21 @@
-use std::default;
-
-use crate::factories::texture::{self, SamplerOptions, Texture2dOptions, TextureBundle};
+use crate::factories::texture::{SamplerOptions, Texture2dOptions, TextureBundle};
 
 use crate::factories::{BindGroupFactory, RenderPipelineFactory};
-use crate::helpers::geometry::{cube, GeometryFactory};
+use crate::helpers::geometry::GeometryFactory;
 use crate::helpers::{self, cameras};
 use crate::pipelines::shadeless::{self, ShadelessPipeline};
 use crate::state::State;
 use crate::{factories, pipelines};
 use image::EncodableLayout;
 use wgpu::{
-    vertex_attr_array, BufferBinding, PipelineLayoutDescriptor, PrimitiveTopology, RenderPipeline,
-    RenderPipelineDescriptor, SamplerDescriptor, ShaderModuleDescriptor, ShaderStages,
-    TextureViewDescriptor, TextureViewDimension, VertexBufferLayout,
+    BufferBinding, PrimitiveTopology, SamplerDescriptor, ShaderModuleDescriptor,
+    TextureViewDescriptor, TextureViewDimension,
 };
 
 /*
 Notes:
-1. Finish rendering the 6 layers of the cube map texture
 2. Correct rotation on cube map (prob will have to use a camera matrix)
 3. Cleanup texture creation code
-
-
 */
 
 #[repr(C, align(16))]
@@ -212,175 +206,8 @@ impl SkyRenderer {
         };
     }
 
-    pub fn create_irradiance_map_from_env(
-        state: &State,
-        image: &image::DynamicImage,
-        options: &SkyRendererOptions, //make options clonable instead of reference,
-    ) -> TextureBundle {
-        todo!("Doesnt work!");
-        let State { device, queue, .. } = state;
-
-        let image = image.to_rgba32f();
-        let SkyRendererOptions { label, dst_size } = *options;
-
-        // This will be the result bundle image
-        // TODO: create this texture via the texture factory
-        let cube_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label,
-            size: wgpu::Extent3d {
-                width: 128,
-                height: 128,
-                depth_or_array_layers: 6,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba32Float,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::STORAGE_BINDING,
-            view_formats: &[],
-        });
-
-        let cube_view = cube_texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some("SKy texture view"),
-            dimension: Some(wgpu::TextureViewDimension::Cube),
-            array_layer_count: Some(6),
-            ..Default::default()
-        });
-
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label,
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
-
-        // -------- Compute shader pipeline -----------
-        let shader_module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Equirectangular to cubemap compute"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance_compute.wgsl").into()),
-        });
-
-        //create equirectangular texture
-        let env_texture_bundle = factories::Texture2dFactory::new_with_options(
-            state,
-            [image.width(), image.height()],
-            Texture2dOptions {
-                format: wgpu::TextureFormat::Rgba32Float,
-                ..Default::default()
-            },
-            SamplerOptions {
-                filter: wgpu::FilterMode::Nearest,
-                address_mode: wgpu::AddressMode::Repeat,
-                mipmap_filter: wgpu::FilterMode::Nearest,
-            },
-            &image.as_bytes(),
-        );
-
-        let compute_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("HDR: equirect layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: wgpu::TextureFormat::Rgba32Float,
-                        view_dimension: wgpu::TextureViewDimension::D2Array,
-                    },
-                    count: None,
-                },
-            ],
-        });
-
-        // TODO: Create pipeline layout via factory functions -----
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&compute_layout],
-            push_constant_ranges: &[],
-        });
-
-        let equirect_to_cubemap =
-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("equirect_to_cubemap"),
-                layout: Some(&pipeline_layout),
-                module: &shader_module,
-                entry_point: "calc_iradiance",
-            });
-
-        let dst_view = cube_texture.create_view(&TextureViewDescriptor {
-            label,
-            dimension: Some(wgpu::TextureViewDimension::D2Array),
-            ..Default::default()
-        });
-
-        // TODO: Create bind groups via factory functions -----
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label,
-            layout: &compute_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&env_texture_bundle.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&dst_view),
-                },
-            ],
-        });
-
-        let mut encoder = device.create_command_encoder(&Default::default());
-        let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label,
-            timestamp_writes: None,
-        });
-
-        let num_workgroups = (dst_size + 15) / 16;
-        pass.set_pipeline(&equirect_to_cubemap);
-        pass.set_bind_group(0, &bind_group, &[]);
-        pass.dispatch_workgroups(num_workgroups, num_workgroups, 6);
-
-        drop(pass);
-
-        queue.submit([encoder.finish()]);
-
-        return TextureBundle {
-            sampler,
-            view: cube_view,
-            texture: cube_texture,
-        };
-    }
-
     pub fn create_iradiance_map(state: &State, input: &TextureBundle) -> TextureBundle {
-        let State {
-            instance,
-            adapter,
-            device,
-            queue,
-            config,
-            window_surface,
-            depth_texture,
-            default_white_texture_bundle,
-            window_size,
-            delta_time,
-            sample_count,
-        } = state;
+        let State { device, queue, .. } = state;
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Equirectangular to cubemap shader"),
@@ -432,7 +259,8 @@ impl SkyRenderer {
         pipeline_factory.add_vertex_attributes(&attribs, stride);
         pipeline_factory.set_sample_count(Some(1));
         // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
-        pipeline_factory.set_color_target_format(Some(wgpu::TextureFormat::Rgba8UnormSrgb));
+        pipeline_factory.set_blend_config(factories::render_pipeline::BlendConfig::None);
+        pipeline_factory.set_color_target_format(Some(wgpu::TextureFormat::Rgba32Float));
         pipeline_factory.set_topology(PrimitiveTopology::TriangleList);
 
         let pipeline = pipeline_factory.create_render_pipeline(
@@ -445,28 +273,19 @@ impl SkyRenderer {
         let render_target = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
-                width: 256,  //input.texture.width() as u32,
-                height: 256, //input.texture.height() as u32,
+                width: 64,  //input.texture.width() as u32,
+                height: 64, //input.texture.height() as u32,
                 depth_or_array_layers: 6,
             },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format: wgpu::TextureFormat::Rgba32Float,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
+            view_formats: &[wgpu::TextureFormat::Rgba32Float],
         });
-
-        // let matrices = [
-        //     glam::Mat4::IDENTITY,
-        //     glam::Mat4::IDENTITY,
-        //     glam::Mat4::IDENTITY,
-        //     glam::Mat4::IDENTITY,
-        //     glam::Mat4::IDENTITY,
-        //     glam::Mat4::IDENTITY,
-        // ];
 
         let matrices = [
             glam::Mat4::look_at_rh(
@@ -519,7 +338,7 @@ impl SkyRenderer {
                 dimension: Some(TextureViewDimension::D2),
                 base_array_layer: i as u32,
                 array_layer_count: Some(1),
-                label: Some("Temp view"),
+                label: Some(format!("Temp view {}", i).as_str()),
                 ..Default::default()
             });
 
@@ -578,9 +397,7 @@ impl SkyRenderer {
         let State { device, .. } = state;
 
         let textures = SkyRenderer::create_cube_map_textures_from_equi(state, image, &options);
-
-        let iradiance_texture = SkyRenderer::create_iradiance_map(state, &textures); //SkyRenderer::create_irradiance_map_from_env(state, image, &options);
-
+        let iradiance_texture = SkyRenderer::create_iradiance_map(state, &textures);
         let uniform_buffer = pipelines::create_uniform_buffer::<Uniform>(1, device);
 
         let environment_layout =
