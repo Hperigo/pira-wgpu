@@ -124,6 +124,7 @@ impl Application for MyExample {
         );
 
         let mut uniform = pipelines::pbr::PbrMaterialModelUniform::new(glam::Mat4::IDENTITY);
+        uniform.ambient = glam::vec3(0.4, 0.4, 0.4);
         uniform.light_intensity = 5.0;
 
         Self {
