@@ -31,6 +31,7 @@ pub struct Uniform {
 pub struct SkyRenderer {
     pub textures: TextureBundle,
     pub iradiance_texture: TextureBundle,
+    pub specular_reflection_texture: TextureBundle,
 
     pub pipeline: wgpu::RenderPipeline,
     pub bind_group: wgpu::BindGroup,
@@ -52,6 +53,41 @@ impl<'a> Default for SkyRendererOptions<'a> {
 }
 
 impl SkyRenderer {
+    fn get_cube_face_view_matrices() -> [glam::Mat4; 6] {
+        [
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(1.0, 0.0, 0.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(-1.0, 0.0, 0.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, -1.0, 0.0),
+                glam::vec3(0.0, 0.0, 1.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 1.0, 0.0),
+                glam::vec3(0.0, 0.0, -1.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 0.0, 1.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+            glam::Mat4::look_at_rh(
+                glam::Vec3::ZERO,
+                glam::vec3(0.0, 0.0, -1.0),
+                glam::vec3(0.0, 1.0, 0.0),
+            ),
+        ]
+    }
+
     pub fn create_cube_map_textures_from_equi(
         state: &State,
         image: &image::DynamicImage,
@@ -199,26 +235,24 @@ impl SkyRenderer {
 
         queue.submit([encoder.finish()]);
 
-        return TextureBundle {
+        TextureBundle {
             sampler,
             view: cube_view,
             texture: cube_texture,
-        };
+        }
     }
 
-    pub fn create_iradiance_map(state: &State, input: &TextureBundle) -> TextureBundle {
+    pub fn create_iradiance_map(
+        state: &State,
+        unit_cube: &shadeless::GpuMesh,
+        input: &TextureBundle,
+    ) -> TextureBundle {
         let State { device, queue, .. } = state;
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Equirectangular to cubemap shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader_irradiance_cubemap.wgsl").into()),
         });
-
-        let mut cube_geo = helpers::geometry::cube::Cube::new(1.0);
-        cube_geo.texture_coords();
-
-        let mesh =
-            shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube_geo.geometry);
 
         let uniform_buffer = pipelines::create_uniform_buffer::<glam::Mat4>(1, device);
 
@@ -287,38 +321,7 @@ impl SkyRenderer {
             view_formats: &[wgpu::TextureFormat::Rgba32Float],
         });
 
-        let matrices = [
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(1.0, 0.0, 0.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(-1.0, 0.0, 0.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, -1.0, 0.0),
-                glam::vec3(0.0, 0.0, 1.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, 1.0, 0.0),
-                glam::vec3(0.0, 0.0, -1.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, 0.0, 1.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-            glam::Mat4::look_at_rh(
-                glam::Vec3::ZERO,
-                glam::vec3(0.0, 0.0, -1.0),
-                glam::vec3(0.0, 1.0, 0.0),
-            ),
-        ];
+        let matrices = Self::get_cube_face_view_matrices();
 
         for i in 0..6 {
             pipelines::write_global_uniform_buffer(
@@ -363,11 +366,11 @@ impl SkyRenderer {
                 render_pass.set_pipeline(&pipeline);
                 render_pass.set_bind_group(0, &bind_group, &[0, 0]);
                 render_pass.set_bind_group(1, &texture_bind_group, &[]);
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, unit_cube.vertex_buffer.slice(..));
                 render_pass
-                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                    .set_index_buffer(unit_cube.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 //  render_pass.draw(0..24, 0..1);
-                render_pass.draw_indexed(0..mesh.vertex_count, 0, 0..1);
+                render_pass.draw_indexed(0..unit_cube.vertex_count, 0, 0..1);
             }
             queue.submit(Some(command_encoder.finish()));
         }
@@ -393,11 +396,181 @@ impl SkyRenderer {
         }
     }
 
+    pub fn create_specular_map(
+        state: &State,
+        unit_cube: &shadeless::GpuMesh,
+        cube_map_texture: &TextureBundle,
+    ) -> TextureBundle {
+        let State { device, queue, .. } = state;
+
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("Specular conv shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_convolve_specular.wgsl").into()),
+        });
+
+        let uniform_buffer = pipelines::create_uniform_buffer::<glam::Mat4>(1, device);
+
+        let rotation_matrix: glam::Mat4 = glam::Mat4::IDENTITY;
+        pipelines::write_uniform_buffer(rotation_matrix.as_ref(), &uniform_buffer, queue, device);
+
+        let attribs = ShadelessPipeline::get_vertex_attrib_layout_array();
+        let stride = std::mem::size_of::<shadeless::Vertex>() as u64;
+
+        let global_uniform_buffer = pipelines::create_global_uniform(&state.device);
+        let model_uniform_buffer =
+            pipelines::create_uniform_buffer::<pipelines::ModelUniform>(1, &state.device);
+
+        let mut bind_factory = BindGroupFactory::new();
+        bind_factory.add_uniform(
+            wgpu::ShaderStages::VERTEX,
+            &global_uniform_buffer,
+            wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
+        );
+        bind_factory.add_uniform(
+            wgpu::ShaderStages::VERTEX,
+            &model_uniform_buffer,
+            wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
+        );
+        let (bind_group_layout, bind_group) = bind_factory.build(&state.device);
+
+        let mut texture_bind_group_factory: BindGroupFactory<'_> = BindGroupFactory::new();
+        texture_bind_group_factory.add_texture_sky_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &cube_map_texture.view,
+            &cube_map_texture.sampler, // TODO!: improve input name to view
+        );
+        let (texture_bind_group_layout, texture_bind_group) =
+            texture_bind_group_factory.build(&state.device);
+
+        let mut pipeline_factory = RenderPipelineFactory::new();
+        pipeline_factory.set_label("Specular convolution pipeline");
+        pipeline_factory.add_vertex_attributes(&attribs, stride);
+        pipeline_factory.set_sample_count(Some(1));
+        // .add_instance_attributes(&instance_attribs, std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress)
+        pipeline_factory.set_blend_config(factories::render_pipeline::BlendConfig::None);
+        pipeline_factory.set_color_target_format(Some(wgpu::TextureFormat::Rgba32Float));
+        pipeline_factory.set_topology(PrimitiveTopology::TriangleList);
+
+        let pipeline = pipeline_factory.create_render_pipeline(
+            &state,
+            &shader,
+            &[&bind_group_layout, &texture_bind_group_layout],
+        );
+
+        //-----------------------------------------------
+        let render_target = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Specular conv cube map"),
+            size: wgpu::Extent3d {
+                width: 64,  //input.texture.width() as u32,
+                height: 64, //input.texture.height() as u32,
+                depth_or_array_layers: 6,
+            },
+            mip_level_count: 5,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[wgpu::TextureFormat::Rgba32Float],
+        });
+
+        let matrices = Self::get_cube_face_view_matrices();
+
+        for mip in 0..5 {
+            for i in 0..6 {
+                pipelines::write_global_uniform_buffer(
+                    glam::Mat4::IDENTITY,
+                    &global_uniform_buffer,
+                    &state.queue,
+                );
+
+                pipelines::write_uniform_buffer(
+                    matrices[i].as_ref(),
+                    &model_uniform_buffer,
+                    &state.queue,
+                    &state.device,
+                );
+
+                let texture_view = render_target.create_view(&wgpu::TextureViewDescriptor {
+                    dimension: Some(TextureViewDimension::D2),
+                    base_array_layer: i as u32,
+                    array_layer_count: Some(1),
+                    label: Some(format!("Spec Conv Temp view {}", i).as_str()),
+                    base_mip_level: mip,
+                    mip_level_count: Some(1),
+                    ..Default::default()
+                });
+
+                let mut command_encoder =
+                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+                {
+                    let mut render_pass =
+                        command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: None,
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &texture_view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                    store: wgpu::StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            occlusion_query_set: None,
+                            timestamp_writes: None,
+                        });
+                    render_pass.set_pipeline(&pipeline);
+                    render_pass.set_bind_group(0, &bind_group, &[0, 0]);
+                    render_pass.set_bind_group(1, &texture_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, unit_cube.vertex_buffer.slice(..));
+                    render_pass.set_index_buffer(
+                        unit_cube.index_buffer.slice(..),
+                        wgpu::IndexFormat::Uint16,
+                    );
+                    //  render_pass.draw(0..24, 0..1);
+                    render_pass.draw_indexed(0..unit_cube.vertex_count, 0, 0..1);
+                }
+                queue.submit(Some(command_encoder.finish()));
+            }
+        }
+
+        let dst_cube_view = render_target.create_view(&TextureViewDescriptor {
+            array_layer_count: Some(6),
+            mip_level_count: Some(1),
+            dimension: Some(TextureViewDimension::Cube),
+            label: Some("Conv specular Cube"),
+            ..Default::default()
+        });
+
+        let dst_cube_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("Conv specular Cube Sampler"),
+            ..Default::default()
+        });
+
+        println!("Done generating Specular conv");
+        TextureBundle {
+            view: dst_cube_view,
+            texture: render_target,
+            sampler: dst_cube_sampler,
+        }
+    }
+
     pub fn new(state: &State, image: &image::DynamicImage, options: SkyRendererOptions) -> Self {
         let State { device, .. } = state;
 
-        let textures = SkyRenderer::create_cube_map_textures_from_equi(state, image, &options);
-        let iradiance_texture = SkyRenderer::create_iradiance_map(state, &textures);
+        let mut cube_geo = helpers::geometry::cube::Cube::new(1.0);
+        cube_geo.texture_coords();
+
+        let unit_cube =
+            shadeless::ShadelessPipeline::get_buffers_from_geometry(state, &cube_geo.geometry);
+
+        let cube_map_texture =
+            SkyRenderer::create_cube_map_textures_from_equi(state, image, &options);
+        let iradiance_texture =
+            SkyRenderer::create_iradiance_map(state, &unit_cube, &cube_map_texture);
+        let specular_texture =
+            SkyRenderer::create_specular_map(state, &unit_cube, &cube_map_texture);
         let uniform_buffer = pipelines::create_uniform_buffer::<Uniform>(1, device);
 
         let environment_layout =
@@ -439,7 +612,7 @@ impl SkyRenderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&textures.view),
+                    resource: wgpu::BindingResource::TextureView(&cube_map_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
@@ -475,7 +648,8 @@ impl SkyRenderer {
 
         Self {
             pipeline,
-            textures,
+            textures: cube_map_texture,
+            specular_reflection_texture: specular_texture,
             iradiance_texture,
             bind_group: environment_bind_group,
             uniform_buffer,
