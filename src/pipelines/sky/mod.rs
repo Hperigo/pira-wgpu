@@ -422,7 +422,7 @@ impl SkyRenderer {
 
         let mut bind_factory = BindGroupFactory::new();
         bind_factory.add_uniform(
-            wgpu::ShaderStages::VERTEX,
+            wgpu::ShaderStages::FRAGMENT,
             &global_uniform_buffer,
             wgpu::BufferSize::new(std::mem::size_of::<glam::Mat4>() as _),
         );
@@ -461,11 +461,11 @@ impl SkyRenderer {
         let render_target = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Specular conv cube map"),
             size: wgpu::Extent3d {
-                width: 64,  //input.texture.width() as u32,
-                height: 64, //input.texture.height() as u32,
+                width: 512,  //input.texture.width() as u32,
+                height: 512, //input.texture.height() as u32,
                 depth_or_array_layers: 6,
             },
-            mip_level_count: 5,
+            mip_level_count: 6,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba32Float,
@@ -476,14 +476,18 @@ impl SkyRenderer {
         });
 
         let matrices = Self::get_cube_face_view_matrices();
+        let r_uniform = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
 
-        for mip in 0..5 {
+        for mip in 0..6 {
+            let r = r_uniform[mip];
+
+            println!("Writting mip: {}", r);
+
             for i in 0..6 {
-                pipelines::write_global_uniform_buffer(
-                    glam::Mat4::IDENTITY,
-                    &global_uniform_buffer,
-                    &state.queue,
-                );
+                let mut mat = glam::Mat4::IDENTITY;
+                mat.as_mut()[0] = r_uniform[mip];
+
+                pipelines::write_global_uniform_buffer(mat, &global_uniform_buffer, &state.queue);
 
                 pipelines::write_uniform_buffer(
                     matrices[i].as_ref(),
@@ -497,7 +501,7 @@ impl SkyRenderer {
                     base_array_layer: i as u32,
                     array_layer_count: Some(1),
                     label: Some(format!("Spec Conv Temp view {}", i).as_str()),
-                    base_mip_level: mip,
+                    base_mip_level: mip as u32,
                     mip_level_count: Some(1),
                     ..Default::default()
                 });

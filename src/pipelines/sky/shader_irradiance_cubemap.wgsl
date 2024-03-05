@@ -81,6 +81,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
 
     var coords = normalize(in.color);
+    coords.x = -coords.x;
 
     var normal = coords.xyz;
     var irradiance = vec3(0.0);
