@@ -60,6 +60,17 @@ var env_map: texture_cube<f32>;
 @group(1) @binding(7)
 var env_sampler: sampler;
 
+@group(1) @binding(8)
+var env_map_prefiltered: texture_cube<f32>;
+@group(1) @binding(9)
+var env_prefiltered_sampler: sampler;
+
+@group(1) @binding(10)
+var brdf_lut: texture_2d<f32>;
+@group(1) @binding(11)
+var brdf_lut_sampler: sampler;
+
+
 @vertex
 fn vs_main( model : VertexInput ) -> VertexOutput {
     var out: VertexOutput;
@@ -167,14 +178,20 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     var V = normalize( camera.position - in.world_position ) ;
     var H = normalize(V + L);
 
+    var R = reflect(-V, N);
+
 
     // Textures -----
-    var irradiance = textureSample(env_map, env_sampler, N ).rgb; // modelUniform.ambient;
+    var irradiance = textureSample(env_map, env_sampler, N ).rgb; // diffuse irradiance // modelUniform.ambient; 
+
+
+
     var albedo =  irradiance * modelUniform.albedo * c_albedo;
     var roughness = saturate((modelUniform.roughness * c_roughness.r));
     var metallic = modelUniform.metallic * c_metallic;
     var ambient = modelUniform.ambient;
     var roughness4 : f32 = pow(roughness, 4.0); //roughness * roughness * roughness * roughness;
+
 
 
 
@@ -185,37 +202,22 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     var NoV = saturate(dot(N, V));
     var NoL = saturate(dot(N, L));
     
-
-	//var diffuseColo	= albedo - albedo * metallic;
-    // var F0 = vec3f(0.0001);
-    // F0 = mix(F0, albedo, vec3f(metallic));
-    
-    
-
-    let world_reflect = reflect(-V, N);
-    let reflection = textureSample(env_map, env_sampler, world_reflect).rgb;
-
     var specularColor = mix( vec3( 0.04 ), albedo, metallic );
+    var F =  fresnelSchlick(max(dot(N, V), 0.0), specularColor); //fresnelSchlick(max(dot(N, V), 0.0), F0, roughness);
 
+    var kS = F;
+    var kD = 1.0 - kS;
+    kD *= 1.0 - metallic;
 
-    var normal_distrib = getNormalDistribution(roughness4, NoH);
-	var fresnel = fresnelSchlick(max(dot(H, V), 0.0), specularColor) ;
-    var geom = getGeometricShadowing( roughness4, NoV, NoL, VoH, L, V );
+    var diffuse    = irradiance * albedo;
 
-    var diffuse = getDiffuse(albedo, roughness4, NoV, NoL, VoH) * (1.0 - metallic);
-    var specular = NoL * normal_distrib * fresnel * geom;
+    var MAX_REFLECTION_LOD = 6.0;
+    var prefiltered_color = textureSampleLevel(env_map_prefiltered, env_prefiltered_sampler, R, roughness * MAX_REFLECTION_LOD ).rgb;
+    var envBRDF  = textureSample(brdf_lut, brdf_lut_sampler, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    var specular = prefiltered_color * (F * envBRDF.x + envBRDF.y);
 
-    var attenuation = getAttenuation(light_position, in.world_position, light_intensity);
-
-    var color = (diffuse + specular)* attenuation; // TODO: add light color
+    var color = (kD * diffuse + specular); //* ao;  //ambient
 
     color += ambient * albedo;
-
-    color = Uncharted2Tonemap(color * 10.0);
-
-    // white balance
-	var whiteInputLevel = 10.0f;
-	var whiteScale			= 1.0f / Uncharted2Tonemap( vec3( whiteInputLevel ) );
-	color					= color * whiteScale;
     return vec4<f32>(color, 1.0);
 }

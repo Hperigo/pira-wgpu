@@ -32,6 +32,7 @@ pub struct SkyRenderer {
     pub textures: TextureBundle,
     pub iradiance_texture: TextureBundle,
     pub specular_reflection_texture: TextureBundle,
+    pub brdf_lut: TextureBundle,
 
     pub pipeline: wgpu::RenderPipeline,
     pub bind_group: wgpu::BindGroup,
@@ -156,7 +157,6 @@ impl SkyRenderer {
             },
             &image.as_bytes(),
         );
-
         let compute_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("HDR: equirect layout"),
             entries: &[
@@ -541,14 +541,15 @@ impl SkyRenderer {
 
         let dst_cube_view = render_target.create_view(&TextureViewDescriptor {
             array_layer_count: Some(6),
-            mip_level_count: Some(1),
+            mip_level_count: Some(6),
             dimension: Some(TextureViewDimension::Cube),
-            label: Some("Conv specular Cube"),
+            label: Some("Conv specular Cube view"),
             ..Default::default()
         });
 
         let dst_cube_sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Conv specular Cube Sampler"),
+            mipmap_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 
@@ -558,6 +559,114 @@ impl SkyRenderer {
             texture: render_target,
             sampler: dst_cube_sampler,
         }
+    }
+
+    pub fn create_brdf_lut(state: &State) -> TextureBundle {
+        let State { device, queue, .. } = state;
+
+        let table_size = 512;
+
+        let shader_module = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("Equirectangular to cubemap compute"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_brdf_lut.wgsl").into()),
+        });
+
+        //        let texture_bundle = texture::Texture2dFactory::new(table_size, table_size)
+        //            .get_texture_and_sampler(device, queue, &[]);
+
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("BRDF Lut Texture"),
+            size: wgpu::Extent3d {
+                width: table_size,
+                height: table_size,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba32Float,
+            usage: wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            label: Some("BRDF Lut view"),
+            dimension: Some(wgpu::TextureViewDimension::D2),
+            array_layer_count: Some(1),
+            ..Default::default()
+        });
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("BRDF Lut sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let texture_bundle = TextureBundle {
+            texture,
+            view,
+            sampler,
+        };
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BRDF Lut bind group layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::StorageTexture {
+                    access: wgpu::StorageTextureAccess::WriteOnly,
+                    format: wgpu::TextureFormat::Rgba32Float,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                },
+                count: None,
+            }],
+        });
+
+        // TODO: Create pipeline layout via factory functions -----
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("BRDF LUT pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &shader_module,
+            entry_point: "main",
+        });
+
+        // TODO: Create bind groups via factory functions -----
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Brdf bind group"),
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&texture_bundle.view),
+            }],
+        });
+
+        let num_workgroups = table_size + 15 / 16;
+        let mut encoder = device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("BRDF lut Compute pass"),
+                ..Default::default()
+            });
+            pass.set_pipeline(&pipeline);
+            pass.set_bind_group(0, &bind_group, &[]);
+            pass.dispatch_workgroups(num_workgroups, num_workgroups, 1);
+        }
+        queue.submit([encoder.finish()]);
+
+        texture_bundle
     }
 
     pub fn new(state: &State, image: &image::DynamicImage, options: SkyRendererOptions) -> Self {
@@ -576,6 +685,8 @@ impl SkyRenderer {
         let specular_texture =
             SkyRenderer::create_specular_map(state, &unit_cube, &cube_map_texture);
         let uniform_buffer = pipelines::create_uniform_buffer::<Uniform>(1, device);
+
+        let brdf_lut = SkyRenderer::create_brdf_lut(&state);
 
         let environment_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -654,6 +765,7 @@ impl SkyRenderer {
             pipeline,
             textures: cube_map_texture,
             specular_reflection_texture: specular_texture,
+            brdf_lut,
             iradiance_texture,
             bind_group: environment_bind_group,
             uniform_buffer,

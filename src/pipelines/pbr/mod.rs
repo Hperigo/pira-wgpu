@@ -128,6 +128,18 @@ impl PbrPipeline {
             &sky.iradiance_texture.sampler,
         );
 
+        texture_bind_group_factory.add_texture_sky_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &sky.specular_reflection_texture.view,
+            &sky.specular_reflection_texture.sampler,
+        );
+
+        texture_bind_group_factory.add_texture_hdr_and_sampler(
+            wgpu::ShaderStages::VERTEX_FRAGMENT,
+            &sky.brdf_lut.view,
+            &sky.brdf_lut.sampler,
+        );
+
         let (texture_bind_group_layout, texture_bind_group) =
             texture_bind_group_factory.build(&ctx.device);
 

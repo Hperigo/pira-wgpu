@@ -119,7 +119,8 @@ impl<'a> BindGroupFactory<'a> {
             view_dimension: wgpu::TextureViewDimension::D2,
             sample_type: wgpu::TextureSampleType::Float { filterable: false },
         };
-        let sampler_binding_type = wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering);
+        let sampler_binding_type =
+            wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering);
 
         self.binding_types.push((stage, texture_binding_type));
         self.binding_types.push((stage, sampler_binding_type));

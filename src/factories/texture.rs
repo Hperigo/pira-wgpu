@@ -158,7 +158,11 @@ impl<'a> Texture2dFactory<'a> {
         queue: &wgpu::Queue,
         data: &[u8],
     ) -> TextureBundle {
-        let texture = device.create_texture_with_data(&queue, &self.texture_descriptor, &data);
+        let texture = if data.len() != 0 {
+            device.create_texture_with_data(&queue, &self.texture_descriptor, &data)
+        } else {
+            device.create_texture(&self.texture_descriptor)
+        };
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&self.sampler_descriptor);

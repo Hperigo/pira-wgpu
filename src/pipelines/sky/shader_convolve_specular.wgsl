@@ -133,6 +133,6 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 	}
 
 	f_color = f_color / total_weight;
-	
+    
     return vec4<f32>(f_color, 1.0);
  }
