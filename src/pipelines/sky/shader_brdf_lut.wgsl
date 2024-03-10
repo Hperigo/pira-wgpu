@@ -83,7 +83,7 @@ fn IntegrateBRDF( NdotV : f32, roughness : f32) -> vec2<f32>
 
     var N = vec3<f32>(0.0, 0.0, 1.0);
 
-    let SAMPLE_COUNT = 1024u;
+    let SAMPLE_COUNT = 512u;
     for(var i = 0u; i < SAMPLE_COUNT; i++)
     {
         var Xi = Hammersley(i, SAMPLE_COUNT);

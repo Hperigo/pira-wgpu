@@ -94,6 +94,7 @@ impl SkyRenderer {
         image: &image::DynamicImage,
         options: &SkyRendererOptions,
     ) -> TextureBundle {
+        puffin::profile_function!();
         let State { device, queue, .. } = state;
 
         let image = image.to_rgba32f();
@@ -247,6 +248,7 @@ impl SkyRenderer {
         unit_cube: &shadeless::GpuMesh,
         input: &TextureBundle,
     ) -> TextureBundle {
+        puffin::profile_function!();
         let State { device, queue, .. } = state;
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -401,6 +403,7 @@ impl SkyRenderer {
         unit_cube: &shadeless::GpuMesh,
         cube_map_texture: &TextureBundle,
     ) -> TextureBundle {
+        puffin::profile_function!();
         let State { device, queue, .. } = state;
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -562,6 +565,7 @@ impl SkyRenderer {
     }
 
     pub fn create_brdf_lut(state: &State) -> TextureBundle {
+        puffin::profile_function!();
         let State { device, queue, .. } = state;
 
         let table_size = 512;
@@ -670,6 +674,7 @@ impl SkyRenderer {
     }
 
     pub fn new(state: &State, image: &image::DynamicImage, options: SkyRendererOptions) -> Self {
+        puffin::profile_function!();
         let State { device, .. } = state;
 
         let mut cube_geo = helpers::geometry::cube::Cube::new(1.0);

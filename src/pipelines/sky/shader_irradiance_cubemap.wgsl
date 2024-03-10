@@ -91,7 +91,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     up = normalize(cross(normal, right));
 
 
-    var sampleDelta = 0.025;
+    var sampleDelta = 0.05;
     var nSamples = 0.0;
 
     for(var phi = 0.0; phi < PI * 2.0; phi += sampleDelta){

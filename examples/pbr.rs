@@ -32,33 +32,39 @@ struct MyExample {
 
 impl Application for MyExample {
     fn init(state: &State) -> Self {
-        let mut sphere = sphere::Sphere::new(5.0, 16, 32);
-        sphere.texture_coords();
-        sphere.normals();
-        sphere.vertex_colors_from_normal();
-        let sphere_mesh = pbr::PbrPipeline::get_buffers_from_geometry(state, &sphere.geometry);
+        let sphere_mesh = {
+            puffin::profile_scope!("Creating Sphere geometry");
+            let mut sphere = sphere::Sphere::new(5.0, 16, 32);
+            sphere.texture_coords();
+            sphere.normals();
+            sphere.vertex_colors_from_normal();
+            pbr::PbrPipeline::get_buffers_from_geometry(state, &sphere.geometry)
+        };
 
         let base_path =
             std::path::Path::new("/Users/henrique/Documents/dev/rust/pira-wgpu/assets/");
+        let roughness_bundle = {
+            puffin::profile_scope!("Loading roughness map");
 
-        let roughness_image = image::open(base_path.join("rustediron2_roughness.png"))
-            .unwrap()
-            .to_rgba8();
+            let roughness_image = image::open(base_path.join("rustediron2_roughness.png"))
+                .unwrap()
+                .to_rgba8();
 
-        let roughness_bundle = factories::Texture2dFactory::new_with_options(
-            &state,
-            [roughness_image.width(), roughness_image.height()],
-            Texture2dOptions {
-                label: Some("RoughnessTexture"),
-                format: TextureFormat::Rgba8Unorm,
-                ..Default::default()
-            },
-            SamplerOptions {
-                filter: wgpu::FilterMode::Nearest,
-                ..Default::default()
-            },
-            roughness_image.as_bytes(),
-        );
+            factories::Texture2dFactory::new_with_options(
+                &state,
+                [roughness_image.width(), roughness_image.height()],
+                Texture2dOptions {
+                    label: Some("RoughnessTexture"),
+                    format: TextureFormat::Rgba8UnormSrgb,
+                    ..Default::default()
+                },
+                SamplerOptions {
+                    filter: wgpu::FilterMode::Nearest,
+                    ..Default::default()
+                },
+                roughness_image.as_bytes(),
+            )
+        };
 
         let albedo_image = image::open(base_path.join("rustediron2_basecolor.png"))
             .unwrap()
@@ -98,17 +104,20 @@ impl Application for MyExample {
             metallic_image.as_bytes(),
         );
 
-        let image = image::open(
-            "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/buikslotermeerplein_1k.exr",
-            // "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/cubemap-equi.png",
-        )
-        .unwrap();
+        let image = {
+            puffin::profile_scope!("Loading HDR");
+            image::open(
+                "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/buikslotermeerplein_1k.exr",
+                // "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/cubemap-equi.png",
+            )
+            .unwrap()
+        };
 
         let sky_renderer = sky::SkyRenderer::new(
             state,
             &image,
             SkyRendererOptions {
-                dst_size: 1024,
+                dst_size: 512,
                 ..Default::default()
             },
         );

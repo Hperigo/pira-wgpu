@@ -227,6 +227,7 @@ fn start<E: Application>(
 
     let mut ui = EguiLayer::setup(&window, &state.device);
 
+    puffin::GlobalProfiler::lock().new_frame();
     event_loop.run(move |event, _, control_flow| {
         match event {
             winit::event::Event::RedrawRequested(_) => {

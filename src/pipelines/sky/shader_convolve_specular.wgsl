@@ -114,14 +114,16 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     let N = normal;
     let V = normal;
 
-	let SAMPLE_COUNT : u32 = 4096u;
+	let SAMPLE_COUNT : u32 = 1024u;
 
 	var total_weight = 0.0;
 	var f_color = vec3<f32>(0.0);
 
+    var mip_level = camera.view_proj[0][0];
+
 	for(var i : u32 = 0u; i < SAMPLE_COUNT; i++){
 		var x_i = Hammersley(i, SAMPLE_COUNT);
-		var H = ImportanceSampleGGX(x_i, normal, camera.view_proj[0][0]);
+		var H = ImportanceSampleGGX(x_i, normal, mip_level);
 		var L = normalize(2.0 * dot(V,H) * H - V);
 
 		var n_dot_l = max(dot(N, L), 0.0);
