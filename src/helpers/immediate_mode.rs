@@ -32,7 +32,7 @@ impl DrawContext {
             state,
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
-            false,
+            true,
         );
 
         Self {
@@ -202,12 +202,13 @@ impl DrawContext {
             let b = -a;
 
             if i == 0 {
-                next_up = point_normal + a;
-                next_down = point_normal + b;
+                next_up = point_normal + a + point;
+                next_down = point_normal + b + point;
             }
 
             self.push_vertex(next_up.x, next_up.y, 0.0);
             self.push_vertex(next_point.x + b.x, next_point.y + b.y, 0.0);
+
             self.push_vertex(next_down.x, next_down.y, 0.0);
 
             self.push_vertex(next_point.x + b.x, next_point.y + b.y, 0.0);

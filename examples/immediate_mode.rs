@@ -60,7 +60,7 @@ impl Application for MyExample {
             let x = (i as f32) * self.spacing;
             let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
 
-            points.push(glam::vec2(x, y + 100.0));
+            points.push(glam::vec2(x + 500.0, y + 100.0));
 
             self.im_draw.push_circle(x, y, 10.0);
         }
