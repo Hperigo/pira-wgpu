@@ -169,6 +169,27 @@ impl DrawContext {
         self.end_shape();
     }
 
+    pub fn push_circle_stroke(&mut self, x: f32, y: f32, radius: f32) {
+        // let vert_count = 16.0f32;
+        const VERT_COUNT: usize = 17;
+
+        // let step = (1.0 / vert_count) * std::f32::consts::PI * 2.0;
+        // let mut current_step = 0.0;
+
+        let mut points: [glam::Vec2; VERT_COUNT] = [glam::Vec2::ZERO; VERT_COUNT];
+
+        for i in 0..VERT_COUNT {
+            let t = (i as f32 / (VERT_COUNT - 1) as f32) * std::f32::consts::PI * 2.0;
+
+            let x1 = (t.cos() * radius) + x;
+            let y1 = (t.sin() * radius) + y;
+
+            points[i] = glam::vec2(x1, y1);
+        }
+
+        self.push_line(&points, 2.0);
+    }
+
     pub fn push_rect(&mut self, x: f32, y: f32, width: f32, height: f32) {
         self.begin_shape();
         self.push_vertex(x + width, y + height, 0.0);

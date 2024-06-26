@@ -40,6 +40,11 @@ impl Application for MyExample {
             &ui_layer.ctx,
             |ui| {
                 ui.label("text");
+
+                let _draw_bt = {
+                    let img = egui::include_image!("../assets/rusty.png");
+                    ui.add(egui::Button::image(img))
+                };
             },
         );
     }

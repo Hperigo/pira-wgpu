@@ -92,7 +92,15 @@ impl UILayer for EguiLayer {
     fn setup(window: &winit::window::Window, device: &wgpu::Device) -> Self {
         let ctx = egui::Context::default();
         ctx.set_fonts(FontDefinitions::default());
-        let winit_state = egui_winit::State::new(ViewportId::ROOT, &window, Some(2.0), Some(1024));
+
+        egui_extras::install_image_loaders(&ctx);
+
+        let winit_state = egui_winit::State::new(
+            ViewportId::ROOT,
+            &window,
+            Some(window.scale_factor() as f32),
+            Some(1024),
+        );
 
         let renderer = egui_wgpu::renderer::Renderer::new(
             device,
@@ -131,7 +139,7 @@ impl UILayer for EguiLayer {
 
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [window.inner_size().width, window.inner_size().height],
-            pixels_per_point: 2.0,
+            pixels_per_point: window.scale_factor() as f32,
         };
 
         let primitives = self.ctx.tessellate(output.shapes, output.pixels_per_point);
@@ -174,6 +182,9 @@ async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_coun
     builder = builder.with_title(title).with_inner_size(size);
 
     let window = builder.build(&event_loop).unwrap();
+
+    println!("Window scale factor: {}", window.scale_factor());
+
     let size = window.inner_size();
     let instance = wgpu::Instance::default();
     let window_surface = unsafe { instance.create_surface(&window).unwrap() };
@@ -271,7 +282,7 @@ fn start<E: Application>(
 
                         let screen_descriptor = ScreenDescriptor {
                             size_in_pixels: [window.inner_size().width, window.inner_size().height],
-                            pixels_per_point: 2.0,
+                            pixels_per_point: window.scale_factor() as f32, //window.scale_factor() as f32,
                         };
                         ui.render(&mut render_pass, &screen_descriptor)
                     }

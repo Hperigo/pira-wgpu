@@ -18,5 +18,6 @@ pub use image;
 pub use wgpu;
 
 pub use egui;
+pub use egui_extras;
 
 pub use helpers::immediate_mode;
