@@ -149,8 +149,13 @@ impl ShadelessPipeline {
         if enable_depth {
             pipeline_factory
                 .add_depth_stencil(crate::factories::render_pipeline::DepthConfig::DefaultWrite);
+        } else {
+            pipeline_factory.add_depth_stencil(
+                crate::factories::render_pipeline::DepthConfig::DefaultDontWrite,
+            );
         }
         pipeline_factory.set_topology(topology);
+        pipeline_factory.set_blend_config(crate::factories::render_pipeline::BlendConfig::Default);
 
         let pipeline = pipeline_factory.create_render_pipeline(
             &ctx,

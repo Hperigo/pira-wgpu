@@ -39,7 +39,7 @@ impl DrawContext {
             state,
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
-            true,
+            false,
         );
 
         Self {
@@ -183,6 +183,10 @@ impl DrawContext {
         self.last_draw_command.texture_id = Some(id);
     }
 
+    pub fn pop_texture(&mut self) {
+        self.last_draw_command.texture_id = None;
+    }
+
     pub fn push_circle(&mut self, x: f32, y: f32, radius: f32) {
         let vert_count = 16.0f32;
         let center = glam::vec2(x, y);
@@ -300,7 +304,7 @@ impl DrawContext {
         render_pass.set_pipeline(&self.pipeline.pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
 
-        for cmd in &self.commands {
+        for cmd in self.commands.iter() {
             match cmd.texture_id {
                 Some(id) => {
                     let bind_group = self.textures.get(&id).unwrap();

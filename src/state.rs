@@ -109,21 +109,21 @@ impl State {
             ..Default::default()
         });
 
-        #[rustfmt::skip]
-        let data: [u8; 16] = [
-            255, 255, 255, 255,
-            0, 0, 0, 255,
-            0, 0, 0, 255,
-            255, 255, 255, 255,
-        ]; // checkerboard
-
         // #[rustfmt::skip]
         // let data: [u8; 16] = [
         //     255, 255, 255, 255,
-        //     255, 255, 255, 255,
-        //     255, 255, 255, 255,
+        //     0, 0, 0, 255,
+        //     0, 0, 0, 255,
         //     255, 255, 255, 255,
         // ]; // checkerboard
+
+        #[rustfmt::skip]
+        let data: [u8; 16] = [
+            255, 255, 255, 255,
+            255, 255, 255, 255,
+            255, 255, 255, 255,
+            255, 255, 255, 255,
+        ]; // checkerboard
 
         let texture_bundle = tf.get_texture_and_sampler(&device, &queue, &data);
 

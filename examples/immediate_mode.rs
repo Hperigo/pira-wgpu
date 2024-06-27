@@ -20,6 +20,7 @@ struct MyExample {
     freq: f32,
 
     texture_bundle: TextureBundle,
+    toronto_texture_bundle: TextureBundle,
 }
 
 impl Application for MyExample {
@@ -38,12 +39,29 @@ impl Application for MyExample {
             image.as_bytes(),
         );
 
+        let image = image::open("./assets/toronto-skyline.jpeg")
+            .unwrap()
+            .to_rgba8();
+        let toronto_texture_bundle = factories::Texture2dFactory::new_with_options(
+            &state,
+            [image.width(), image.height()],
+            Texture2dOptions {
+                ..Default::default()
+            },
+            SamplerOptions {
+                filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            },
+            image.as_bytes(),
+        );
+
         Self {
             im_draw: DrawContext::new(state),
             spacing: 25.0,
             freq: 0.01,
 
             texture_bundle,
+            toronto_texture_bundle,
         }
     }
 
@@ -59,26 +77,49 @@ impl Application for MyExample {
     }
 
     fn on_gui(&mut self, ui_layer: &mut EguiLayer) {
-        egui::SidePanel::new(egui::panel::Side::Left, egui::Id::new("Side pannel")).show(
-            &ui_layer.ctx,
-            |ui| {
-                ui.label("text");
+        // egui::SidePanel::new(egui::panel::Side::Left, egui::Id::new("Side pannel")).show(
+        //     &ui_layer.ctx,
+        //     |ui| {
+        //         ui.label("text");
 
-                let _draw_bt = {
-                    let img = egui::include_image!("../assets/rusty.png");
-                    ui.add(egui::Button::image(img))
-                };
-            },
-        );
+        //         let _draw_bt = {
+        //             let img = egui::include_image!("../assets/rusty.png");
+        //             ui.add(egui::Button::image(img))
+        //         };
+        //     },
+        // );
     }
 
     fn update(&mut self, state: &State, frame_count: u64, _delta_time: f64) {
         self.im_draw.start();
 
-        self.im_draw.push_color_alpha(0.1, 0.2, 0.3, 0.5);
+        self.im_draw.push_color_alpha(0.1, 0.2, 0.3, 1.0);
         self.im_draw.push_rect(100.0, 100.0, 200.0, 100.0);
 
         self.im_draw.push_color(1.0, 1.0, 0.0);
+
+        self.im_draw.push_texture(
+            &state.device,
+            &self.toronto_texture_bundle.view,
+            &self.toronto_texture_bundle.sampler,
+        );
+        self.im_draw.push_color_alpha(1.0, 1.0, 1.0, 1.0);
+        self.im_draw.push_rect(300.0, 100.0, 200.0, 100.0);
+
+        self.im_draw.pop_texture();
+        self.im_draw.push_color(1.0, 0.2, 0.2);
+        let mut points = Vec::new();
+
+        for i in 0..500 {
+            let x = (i as f32) * self.spacing;
+            let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
+
+            points.push(glam::vec2(x + 500.0, y + 100.0));
+            self.im_draw.push_circle(x, y, 10.0);
+        }
+
+        self.im_draw.push_color(1.0, 1.0, 1.0);
+        self.im_draw.push_line(&points, 10.0);
 
         self.im_draw.push_texture(
             &state.device,
@@ -86,20 +127,7 @@ impl Application for MyExample {
             &self.texture_bundle.sampler,
         );
         self.im_draw.push_rect(100.0, 350.0, 200.0, 100.0);
-
-        self.im_draw.push_color(0.3, 0.4, 0.2);
-
-        let mut points = Vec::new();
-        for i in 0..1000 {
-            let x = (i as f32) * self.spacing;
-            let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
-
-            points.push(glam::vec2(x + 500.0, y + 100.0));
-
-            self.im_draw.push_circle(x, y, 10.0);
-        }
-
-        self.im_draw.push_line(&points, 10.0);
+        self.im_draw.pop_texture();
 
         self.im_draw.end(state);
     }
