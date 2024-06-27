@@ -1,26 +1,49 @@
+use pira_wgpu::factories::texture::TextureBundle;
+use pira_wgpu::framework::EguiLayer;
+use pira_wgpu::immediate_mode::DrawContext;
 use pira_wgpu::{
+    factories::{
+        self,
+        texture::{SamplerOptions, Texture2dOptions},
+    },
     framework::{self, Application},
     state::State,
 };
 use winit::dpi::PhysicalSize;
 
-use pira_wgpu::immediate_mode::DrawContext;
-
-use pira_wgpu::framework::EguiLayer;
+use image::EncodableLayout;
 
 struct MyExample {
     im_draw: pira_wgpu::immediate_mode::DrawContext,
 
     spacing: f32,
     freq: f32,
+
+    texture_bundle: TextureBundle,
 }
 
 impl Application for MyExample {
     fn init(state: &State) -> Self {
+        let image = image::open("./assets/rusty.png").unwrap().to_rgba8();
+        let texture_bundle = factories::Texture2dFactory::new_with_options(
+            &state,
+            [image.width(), image.height()],
+            Texture2dOptions {
+                ..Default::default()
+            },
+            SamplerOptions {
+                filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            },
+            image.as_bytes(),
+        );
+
         Self {
             im_draw: DrawContext::new(state),
             spacing: 25.0,
             freq: 0.01,
+
+            texture_bundle,
         }
     }
 
@@ -56,6 +79,12 @@ impl Application for MyExample {
         self.im_draw.push_rect(100.0, 100.0, 200.0, 100.0);
 
         self.im_draw.push_color(1.0, 1.0, 0.0);
+
+        self.im_draw.push_texture(
+            &state.device,
+            &self.texture_bundle.view,
+            &self.texture_bundle.sampler,
+        );
         self.im_draw.push_rect(100.0, 350.0, 200.0, 100.0);
 
         self.im_draw.push_color(0.3, 0.4, 0.2);

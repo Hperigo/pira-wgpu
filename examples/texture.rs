@@ -13,7 +13,8 @@ use wgpu::RenderPass;
 use winit::dpi::PhysicalSize;
 
 use image::EncodableLayout;
-use winit::event::{ElementState, VirtualKeyCode};
+use winit::event::ElementState;
+use winit::keyboard::KeyCode;
 
 struct MyExample {
     clear_color: [f32; 4],
@@ -130,8 +131,8 @@ impl Application for MyExample {
 
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {
         match _event {
-            winit::event::WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                Some(VirtualKeyCode::T) => match input.state {
+            winit::event::WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
+                winit::keyboard::PhysicalKey::Code(KeyCode::KeyT) => match event.state {
                     ElementState::Released => {
                         self.use_toronto_photo = !self.use_toronto_photo;
                     }

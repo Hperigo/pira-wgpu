@@ -1,4 +1,4 @@
-use wgpu::util::DeviceExt;
+use wgpu::util::{DeviceExt, TextureDataOrder};
 
 use crate::state::State;
 
@@ -121,9 +121,12 @@ impl<'a> Texture2dFactory<'a> {
         let texture = if data.len() == 0 {
             state.device.create_texture(&texture_descriptor)
         } else {
-            state
-                .device
-                .create_texture_with_data(&state.queue, &texture_descriptor, &data)
+            state.device.create_texture_with_data(
+                &state.queue,
+                &texture_descriptor,
+                TextureDataOrder::default(),
+                &data,
+            )
         };
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -159,7 +162,12 @@ impl<'a> Texture2dFactory<'a> {
         data: &[u8],
     ) -> TextureBundle {
         let texture = if data.len() != 0 {
-            device.create_texture_with_data(&queue, &self.texture_descriptor, &data)
+            device.create_texture_with_data(
+                &queue,
+                &self.texture_descriptor,
+                TextureDataOrder::default(),
+                &data,
+            )
         } else {
             device.create_texture(&self.texture_descriptor)
         };

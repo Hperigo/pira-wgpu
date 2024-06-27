@@ -38,7 +38,7 @@ pub struct State {
     pub queue: wgpu::Queue,
 
     pub config: wgpu::SurfaceConfiguration,
-    pub window_surface: wgpu::Surface,
+    pub window_surface: wgpu::Surface<'static>,
 
     pub depth_texture: Option<TextureBundle>,
 
@@ -61,7 +61,7 @@ impl State {
     pub async fn new(
         sample_count: u32,
         instance: wgpu::Instance,
-        window_surface: wgpu::Surface,
+        window_surface: wgpu::Surface<'static>,
         window_size: Size,
     ) -> State {
         let adapter = instance
@@ -76,8 +76,8 @@ impl State {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                     label: None,
                 },
                 None, // Trace path
@@ -94,6 +94,7 @@ impl State {
             height: window_size.height,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
             present_mode: surface_caps.present_modes[0],
+            desired_maximum_frame_latency: 2,
         };
 
         window_surface.configure(&device, &config);

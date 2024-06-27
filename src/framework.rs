@@ -1,12 +1,9 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use egui::{FontDefinitions, ViewportId};
-use egui_wgpu::renderer::ScreenDescriptor;
-use winit::{
-    dpi::PhysicalSize,
-    event::{self, WindowEvent},
-    event_loop::EventLoop,
-};
+use egui_wgpu::ScreenDescriptor;
+//use egui_wgpu::renderer::ScreenDescriptor;
+use winit::{dpi::PhysicalSize, event::WindowEvent, event_loop::EventLoop, keyboard::Key};
 
 //use crate::wgpu::{self, factories::render_pass::RenderPassFactory, State};
 use crate::{
@@ -61,7 +58,11 @@ pub trait UILayer {
     fn setup(window: &winit::window::Window, device: &wgpu::Device) -> Self
     where
         Self: Sized;
-    fn event(&mut self, _event: &winit::event::WindowEvent) -> bool {
+    fn event(
+        &mut self,
+        _window: &winit::window::Window,
+        _event: &winit::event::WindowEvent,
+    ) -> bool {
         false
     }
     fn begin_gui(&mut self);
@@ -95,14 +96,22 @@ impl UILayer for EguiLayer {
 
         egui_extras::install_image_loaders(&ctx);
 
+        // let winit_state = egui_winit::State::new(
+        //     ViewportId::ROOT,
+        //     &window,
+        //     Some(window.scale_factor() as f32),
+        //     Some(1024),
+        // );
+
         let winit_state = egui_winit::State::new(
+            ctx.clone(),
             ViewportId::ROOT,
             &window,
             Some(window.scale_factor() as f32),
             Some(1024),
         );
 
-        let renderer = egui_wgpu::renderer::Renderer::new(
+        let renderer = egui_wgpu::Renderer::new(
             device,
             wgpu::TextureFormat::Bgra8UnormSrgb,
             Some(wgpu::TextureFormat::Depth24Plus),
@@ -116,8 +125,8 @@ impl UILayer for EguiLayer {
             primitives: Vec::new(),
         }
     }
-    fn event(&mut self, event: &winit::event::WindowEvent) -> bool {
-        let _ = self.winit_state.on_window_event(&self.ctx, event);
+    fn event(&mut self, window: &winit::window::Window, event: &winit::event::WindowEvent) -> bool {
+        let _ = self.winit_state.on_window_event(window, event);
         self.ctx.is_pointer_over_area()
     }
     fn begin_gui(&mut self) {
@@ -135,7 +144,7 @@ impl UILayer for EguiLayer {
         let output = self.ctx.end_frame();
 
         self.winit_state
-            .handle_platform_output(&window, &self.ctx, output.platform_output);
+            .handle_platform_output(&window, output.platform_output);
 
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [window.inner_size().width, window.inner_size().height],
@@ -170,24 +179,24 @@ impl UILayer for EguiLayer {
 }
 
 struct Setup {
-    window: winit::window::Window,
+    window: Arc<winit::window::Window>,
     size: winit::dpi::PhysicalSize<u32>,
     event_loop: EventLoop<()>,
     state: State,
 }
 
 async fn setup<E: Application>(title: &str, size: PhysicalSize<u32>, sample_count: u32) -> Setup {
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let mut builder = winit::window::WindowBuilder::new();
     builder = builder.with_title(title).with_inner_size(size);
 
-    let window = builder.build(&event_loop).unwrap();
+    let window = Arc::new(builder.build(&event_loop).unwrap());
 
     println!("Window scale factor: {}", window.scale_factor());
 
     let size = window.inner_size();
     let instance = wgpu::Instance::default();
-    let window_surface = unsafe { instance.create_surface(&window).unwrap() };
+    let window_surface = { instance.create_surface(window.clone()).unwrap() };
 
     let state = State::new(
         sample_count,
@@ -239,84 +248,102 @@ fn start<E: Application>(
     let mut ui = EguiLayer::setup(&window, &state.device);
 
     puffin::GlobalProfiler::lock().new_frame();
-    event_loop.run(move |event, _, control_flow| {
+    let _ = event_loop.run(move |event, control_flow| {
         match event {
-            winit::event::Event::RedrawRequested(_) => {
-                let delta_time = Instant::now() - last_frame_inst;
-                last_frame_inst = Instant::now();
-
-                {
-                    puffin::profile_scope!("update");
-                    application.update(&state, frame_count, delta_time.as_secs_f64());
-                }
-                frame_count += 1;
-
-                state.delta_time = delta_time.as_millis() as f32;
-
-                state.render(|ctx, frame_data| {
-                    puffin::profile_scope!("Render");
-                    let mut render_pass_factory = RenderPassFactory::new();
-
-                    let PerFrameData {
-                        encoder,
-                        view,
-                        multisampled_view,
-                    } = frame_data;
-
-                    ui.begin_gui();
-
-                    application.on_gui(&mut ui);
-
-                    ui.end_gui(&window, &state.device, &state.queue, encoder);
-
-                    {
-                        render_pass_factory.add_color_atachment(
-                            application.clear_color(),
-                            &multisampled_view,
-                            Some(&view),
-                        );
-                        let mut render_pass =
-                            render_pass_factory.get_render_pass(ctx, encoder, true);
-
-                        application.render(&state, &mut render_pass);
-
-                        let screen_descriptor = ScreenDescriptor {
-                            size_in_pixels: [window.inner_size().width, window.inner_size().height],
-                            pixels_per_point: window.scale_factor() as f32, //window.scale_factor() as f32,
-                        };
-                        ui.render(&mut render_pass, &screen_descriptor)
-                    }
-                });
-                puffin::GlobalProfiler::lock().new_frame();
-            }
-            winit::event::Event::MainEventsCleared => {
+            winit::event::Event::AboutToWait => {
                 window.request_redraw();
             }
             winit::event::Event::WindowEvent { ref event, .. } => {
-                if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
-                    *control_flow = winit::event_loop::ControlFlow::Exit;
-                }
+                let is_ui_using_event = ui.event(&window, event);
 
-                let is_ui_using_event = ui.event(event);
+                match event {
+                    WindowEvent::RedrawRequested => {
+                        let delta_time = Instant::now() - last_frame_inst;
+                        last_frame_inst = Instant::now();
 
-                if let winit::event::WindowEvent::Resized(physical_size) = event {
-                    // state.window_size = Size::new(physical_size.width, physical_size.height);
+                        {
+                            puffin::profile_scope!("update");
+                            application.update(&state, frame_count, delta_time.as_secs_f64());
+                        }
+                        frame_count += 1;
 
-                    println!("Size: {:?}", physical_size);
-                    // state.resize(*physical_size);
-                }
+                        state.delta_time = delta_time.as_millis() as f32;
 
-                if let winit::event::WindowEvent::Focused(_focused) = event {}
+                        state.render(|ctx, frame_data| {
+                            puffin::profile_scope!("Render");
+                            let mut render_pass_factory = RenderPassFactory::new();
 
-                if let winit::event::WindowEvent::KeyboardInput { input, .. } = event {
-                    if input.virtual_keycode == Some(event::VirtualKeyCode::Escape) {
-                        *control_flow = winit::event_loop::ControlFlow::Exit;
+                            let PerFrameData {
+                                encoder,
+                                view,
+                                multisampled_view,
+                            } = frame_data;
+
+                            ui.begin_gui();
+
+                            application.on_gui(&mut ui);
+
+                            ui.end_gui(&window, &state.device, &state.queue, encoder);
+
+                            {
+                                render_pass_factory.add_color_atachment(
+                                    application.clear_color(),
+                                    &multisampled_view,
+                                    Some(&view),
+                                );
+                                let mut render_pass =
+                                    render_pass_factory.get_render_pass(ctx, encoder, true);
+
+                                application.render(&state, &mut render_pass);
+
+                                let screen_descriptor = ScreenDescriptor {
+                                    size_in_pixels: [
+                                        window.inner_size().width,
+                                        window.inner_size().height,
+                                    ],
+                                    pixels_per_point: window.scale_factor() as f32, //window.scale_factor() as f32,
+                                };
+                                ui.render(&mut render_pass, &screen_descriptor)
+                            }
+                        });
+                        puffin::GlobalProfiler::lock().new_frame();
                     }
+                    WindowEvent::CloseRequested | WindowEvent::Destroyed => {
+                        control_flow.exit();
+                    }
+                    WindowEvent::KeyboardInput { event, .. } => match event.logical_key {
+                        Key::Named(winit::keyboard::NamedKey::Escape) => {
+                            control_flow.exit();
+                        }
+                        _ => (),
+                    },
+                    _ => (),
                 }
+
                 if !is_ui_using_event {
                     puffin::profile_scope!("Event");
                     application.event(&state, event);
                 }
+                // if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
+                //
+                // }
+
+                //
+
+                // if let winit::event::WindowEvent::Resized(physical_size) = event {
+                //     // state.window_size = Size::new(physical_size.width, physical_size.height);
+
+                //     println!("Size: {:?}", physical_size);
+                //     // state.resize(*physical_size);
+                // }
+
+                // if let winit::event::WindowEvent::Focused(_focused) = event {}
+
+                // if let winit::event::WindowEvent::KeyboardInput { input, .. } = event {
+                //     if input.virtual_keycode == Some(event::VirtualKeyCode::Escape) {
+                //         *control_flow = winit::event_loop::ControlFlow::Exit;
+                //     }
+                // }
             }
             _ => {}
         }

@@ -1,13 +1,17 @@
 use crate::{
+    factories::{self},
     pipelines::{self, shadeless, ModelUniform},
     state::State,
 };
-use wgpu;
+use egui::ahash::{HashMap, HashMapExt};
+use wgpu::{self, BindGroup, ShaderStages, TextureView};
 
 #[derive(Debug, Clone, Copy)]
 struct DrawCommand {
     start_vertex: usize,
     end_vertex: usize,
+
+    texture_id: Option<wgpu::Id<TextureView>>,
 }
 
 pub struct DrawContext {
@@ -17,8 +21,11 @@ pub struct DrawContext {
     commands: Vec<DrawCommand>,
     vertices: Vec<shadeless::Vertex>,
 
+    textures: HashMap<wgpu::Id<TextureView>, BindGroup>,
+
     last_draw_command: DrawCommand,
     last_color: [f32; 4],
+    last_uv: [f32; 2],
 
     pub perspective_matrix: glam::Mat4,
     pub view_matrix: glam::Mat4,
@@ -38,11 +45,17 @@ impl DrawContext {
         Self {
             commands: Vec::new(),
             vertices: Vec::new(),
+            textures: HashMap::new(),
+
             last_draw_command: DrawCommand {
                 start_vertex: 0,
                 end_vertex: 0,
+                texture_id: None,
             },
+
             last_color: *glam::Vec4::ONE.as_ref(),
+            last_uv: *glam::Vec2::ZERO.as_ref(),
+
             view_matrix: glam::Mat4::IDENTITY,
             perspective_matrix: glam::Mat4::orthographic_lh(
                 0.0,
@@ -70,6 +83,8 @@ impl DrawContext {
         self.last_draw_command = DrawCommand {
             start_vertex: 0,
             end_vertex: 0,
+
+            texture_id: None,
         };
     }
 
@@ -131,16 +146,41 @@ impl DrawContext {
         self.last_color[3] = a;
     }
 
+    pub fn push_uv_slice(&mut self, uv: &[f32; 2]) {
+        self.last_uv = *uv;
+    }
+
     pub fn push_color_slice(&mut self, color: &[f32; 4]) {
         self.last_color = *color;
     }
 
     pub fn push_vertex_slice(&mut self, pos: &[f32; 3]) {
         self.vertices
-            .push(shadeless::Vertex::new(*pos, [0.0, 0.0], self.last_color))
+            .push(shadeless::Vertex::new(*pos, self.last_uv, self.last_color))
     }
     pub fn push_vertex(&mut self, x: f32, y: f32, z: f32) {
         self.push_vertex_slice(&[x, y, z]);
+    }
+
+    pub fn push_texture(
+        &mut self,
+        device: &wgpu::Device,
+        texture: &wgpu::TextureView,
+        sampler: &wgpu::Sampler,
+    ) {
+        let id = match self.textures.get(&texture.global_id()) {
+            Some(_) => texture.global_id(),
+            None => {
+                let (_, bind_group) = factories::BindGroupFactory::new()
+                    .add_texture_and_sampler(ShaderStages::VERTEX_FRAGMENT, texture, sampler)
+                    .build(device);
+
+                let id = texture.global_id(); // id 0 is the default white texture
+                self.textures.insert(id, bind_group);
+                id
+            }
+        };
+        self.last_draw_command.texture_id = Some(id);
     }
 
     pub fn push_circle(&mut self, x: f32, y: f32, radius: f32) {
@@ -192,12 +232,25 @@ impl DrawContext {
 
     pub fn push_rect(&mut self, x: f32, y: f32, width: f32, height: f32) {
         self.begin_shape();
+
+        // first triangle
+        self.push_uv_slice(&[1.0, 1.0]);
         self.push_vertex(x + width, y + height, 0.0);
+
+        self.push_uv_slice(&[1.0, 0.0]);
         self.push_vertex(x + width, y, 0.0);
+
+        self.push_uv_slice(&[0.0, 0.0]);
         self.push_vertex(x, y, 0.0);
 
+        // second triangle
+        self.push_uv_slice(&[1.0, 1.0]);
         self.push_vertex(x + width, y + height, 0.0);
+
+        self.push_uv_slice(&[0.0, 0.0]);
         self.push_vertex(x, y, 0.0);
+
+        self.push_uv_slice(&[0.0, 1.0]);
         self.push_vertex(x, y + height, 0.0);
 
         self.end_shape();
@@ -244,11 +297,25 @@ impl DrawContext {
 
     pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
         render_pass.set_bind_group(0, &self.pipeline.bind_group, &[0, 0 as u32]);
-        render_pass.set_bind_group(1, self.pipeline.texture_bind_group.as_ref().unwrap(), &[]);
         render_pass.set_pipeline(&self.pipeline.pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
 
         for cmd in &self.commands {
+            match cmd.texture_id {
+                Some(id) => {
+                    let bind_group = self.textures.get(&id).unwrap();
+
+                    render_pass.set_bind_group(1, bind_group, &[]);
+                }
+                None => {
+                    render_pass.set_bind_group(
+                        1,
+                        self.pipeline.texture_bind_group.as_ref().unwrap(),
+                        &[],
+                    );
+                }
+            }
+
             let start = cmd.start_vertex as u32;
             let end = cmd.end_vertex as u32;
             render_pass.draw(start..end, 0..1);
