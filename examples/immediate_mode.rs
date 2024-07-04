@@ -76,19 +76,7 @@ impl Application for MyExample {
         }
     }
 
-    fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {
-        // egui::SidePanel::new(egui::panel::Side::Left, egui::Id::new("Side pannel")).show(
-        //     &ui_layer.ctx,
-        //     |ui| {
-        //         ui.label("text");
-
-        //         let _draw_bt = {
-        //             let img = egui::include_image!("../assets/rusty.png");
-        //             ui.add(egui::Button::image(img))
-        //         };
-        //     },
-        // );
-    }
+    fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {}
 
     fn update(&mut self, state: &State, frame_count: u64, _delta_time: f64) {
         self.im_draw.start();
