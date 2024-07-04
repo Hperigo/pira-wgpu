@@ -139,6 +139,63 @@ impl<'a> Texture2dFactory<'a> {
         }
     }
 
+    pub fn new_ktx(
+        state: &State,
+        size: [u32; 2],
+        texture_options: Texture2dOptions,
+        sampler_options: SamplerOptions,
+        data: &[u8],
+    ) -> TextureBundle {
+        let texture_size = wgpu::Extent3d {
+            width: size[0],
+            height: size[1],
+            depth_or_array_layers: 1,
+        };
+
+        let sampler_descriptor = wgpu::SamplerDescriptor {
+            address_mode_u: sampler_options.address_mode,
+            address_mode_v: sampler_options.address_mode,
+            address_mode_w: sampler_options.address_mode,
+
+            mag_filter: sampler_options.filter,
+            min_filter: sampler_options.filter,
+            mipmap_filter: sampler_options.mipmap_filter,
+
+            ..Default::default()
+        };
+
+        let texture_descriptor = wgpu::TextureDescriptor {
+            size: texture_size,
+            mip_level_count: texture_options.mip_level_count,
+            sample_count: texture_options.sample_count,
+            view_formats: &[],
+            dimension: wgpu::TextureDimension::D2,
+            format: texture_options.format,
+            usage: texture_options.usage,
+            label: texture_options.label,
+        };
+
+        let texture = if data.len() == 0 {
+            state.device.create_texture(&texture_descriptor)
+        } else {
+            state.device.create_texture_with_data(
+                &state.queue,
+                &texture_descriptor,
+                TextureDataOrder::default(),
+                &data,
+            )
+        };
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = state.device.create_sampler(&sampler_descriptor);
+
+        TextureBundle {
+            texture,
+            view,
+            sampler,
+        }
+    }
+
     pub fn set_sampler_descriptor<'b>(
         &'b mut self,
         sampler: wgpu::SamplerDescriptor<'a>,

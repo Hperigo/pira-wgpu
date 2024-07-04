@@ -1,4 +1,4 @@
-use wgpu::{self, AddressMode, CommandEncoder, TextureFormat, TextureView};
+use wgpu::{self, AddressMode, CommandEncoder, Features, TextureFormat, TextureView};
 use winit::dpi::PhysicalSize;
 
 use super::factories::texture::{DepthTextureFactory, Texture2dFactory, TextureBundle};
@@ -76,7 +76,7 @@ impl State {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
+                    required_features: Features::TEXTURE_COMPRESSION_ASTC,
                     required_limits: wgpu::Limits::default(),
                     label: None,
                 },

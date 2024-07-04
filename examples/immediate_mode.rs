@@ -76,7 +76,7 @@ impl Application for MyExample {
         }
     }
 
-    fn on_gui(&mut self, ui_layer: &mut EguiLayer) {
+    fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {
         // egui::SidePanel::new(egui::panel::Side::Left, egui::Id::new("Side pannel")).show(
         //     &ui_layer.ctx,
         //     |ui| {
