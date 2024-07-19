@@ -133,7 +133,7 @@ impl ShadelessPipeline {
         let (bind_group_layout, bind_group) = bind_factory.build(&ctx.device);
 
         let mut texture_bind_group_factory: BindGroupFactory<'_> = BindGroupFactory::new();
-        texture_bind_group_factory.add_texture_and_sampler(
+        texture_bind_group_factory.add_texture_hdr_and_sampler(
             wgpu::ShaderStages::VERTEX_FRAGMENT,
             &texture.view,
             &texture.sampler,

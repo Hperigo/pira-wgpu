@@ -222,9 +222,9 @@ fn start<E: Application>(
         mut state,
     }: Setup,
 ) {
-    let server_addr = format!("127.0.0.1:{}", puffin_http::DEFAULT_PORT);
-    let _puffin_server = puffin_http::Server::new(&server_addr).unwrap();
-    eprintln!("Run this to view profiling data:  puffin_viewer {server_addr}");
+    let _server_addr = format!("127.0.0.1:{}", puffin_http::DEFAULT_PORT);
+    // let _puffin_server = puffin_http::Server::new(&server_addr).or(None);
+    // eprintln!("Run this to view profiling data:  puffin_viewer {server_addr}");
     puffin::set_scopes_on(true);
 
     let mut config = state
