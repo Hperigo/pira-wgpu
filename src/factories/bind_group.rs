@@ -131,7 +131,7 @@ impl<'a> BindGroupFactory<'a> {
     pub fn build(&self, device: &wgpu::Device) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
         let mut layout_entries = Vec::new();
         for index in 0..self.binding_types.len() {
-            println!("{} Binding {:?}", index, self.binding_types[index]);
+            // println!("{} Binding {:?}", index, self.binding_types[index]);
 
             let layout_entry = wgpu::BindGroupLayoutEntry {
                 binding: index as u32,

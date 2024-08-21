@@ -308,7 +308,6 @@ impl DrawContext {
             match cmd.texture_id {
                 Some(id) => {
                     let bind_group = self.textures.get(&id).unwrap();
-
                     render_pass.set_bind_group(1, bind_group, &[]);
                 }
                 None => {

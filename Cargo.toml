@@ -16,7 +16,7 @@ image = { version = "0.24.8", default-features = false, features = [
     "hdr",
     "exr",
 ] }
-glam = { version = "*", features = ["bytemuck"] }
+glam = { version = "*", features = ["bytemuck", "serde"] }
 rand = { version = "*" }
 
 egui_extras = { version = "0.27.2", features = ["all_loaders"] }

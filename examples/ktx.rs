@@ -28,12 +28,7 @@ struct KtxExample {
 
 impl Application for KtxExample {
     fn init(state: &State) -> Self {
-        let file =
-            File::open("/Users/henrique/Documents/dev/rust/pira-wgpu/assets/toronto-skyline.ktx2")
-                .unwrap();
-
-        let mut bytes = Vec::new();
-        BufReader::new(file).read_to_end(&mut bytes).unwrap();
+        let bytes = include_bytes!("../assets/toronto-skyline.ktx2");
         let reader = ktx2::Reader::new(bytes).expect("Can't create reader"); // Crate instance of reader.
         let header = reader.header();
         println!("Header: {:#?}", header);

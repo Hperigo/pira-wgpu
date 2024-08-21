@@ -76,7 +76,8 @@ impl State {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    required_features: Features::TEXTURE_COMPRESSION_ASTC,
+                    required_features: Features::TEXTURE_COMPRESSION_ASTC
+                        | Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
                     required_limits: wgpu::Limits::default(),
                     label: None,
                 },
@@ -188,7 +189,7 @@ impl State {
         let multisampled_frame_descriptor = wgpu::TextureDescriptor {
             size: multisampled_texture_extent,
             mip_level_count: 1,
-            sample_count: self.get_sample_count(),
+            sample_count: 4,
             view_formats: &[TextureFormat::Bgra8UnormSrgb],
             dimension: wgpu::TextureDimension::D2,
             format: self.config.format,

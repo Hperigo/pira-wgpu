@@ -1,6 +1,6 @@
 @group(0)
 @binding(0)
-var dst: texture_storage_2d<rgba32float, write>;
+var dst: texture_storage_2d<rgba32float, read_write>;
 
 @compute
 @workgroup_size(1)
