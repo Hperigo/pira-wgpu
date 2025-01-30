@@ -2,10 +2,8 @@ use std::{sync::Arc, time::Instant};
 
 use egui::{FontDefinitions, ViewportId};
 use egui_wgpu::ScreenDescriptor;
-//use egui_wgpu::renderer::ScreenDescriptor;
 use winit::{dpi::PhysicalSize, event::WindowEvent, event_loop::EventLoop, keyboard::Key};
 
-//use crate::wgpu::{self, factories::render_pass::RenderPassFactory, State};
 use crate::{
     factories::render_pass::RenderPassFactory,
     state::{PerFrameData, Size, State},
