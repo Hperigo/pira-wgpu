@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use std::fs::File;
-use std::io::{BufReader, Read};
 
 use pira_wgpu::factories::texture::{SamplerOptions, Texture2dOptions, TextureBundle};
 use pira_wgpu::factories::{self, BindGroupFactory};
