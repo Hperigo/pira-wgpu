@@ -42,7 +42,11 @@ impl Application for MyExample {
         };
 
         let base_path =
-            std::path::Path::new("/Users/henrique/Documents/dev/rust/pira-wgpu/assets/");
+            std::path::Path::new("./assets/");
+
+        let abs_path = std::fs::canonicalize(base_path).unwrap().to_str();
+
+        println!("Base path: {}", std::fs::canonicalize(base_path).unwrap().to_str().unwrap_or_default());
         let roughness_bundle = {
             puffin::profile_scope!("Loading roughness map");
 
@@ -107,7 +111,7 @@ impl Application for MyExample {
         let image = {
             puffin::profile_scope!("Loading HDR");
             image::open(
-                "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/buikslotermeerplein_1k.exr",
+                base_path.join("buikslotermeerplein_1k.exr"),
                 // "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/cubemap-equi.png",
             )
             .unwrap()
