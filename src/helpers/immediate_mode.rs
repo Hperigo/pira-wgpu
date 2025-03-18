@@ -1,46 +1,70 @@
+use crate::egui::ahash::{HashMap, HashMapExt};
+use crate::pipelines::ModelUniform;
+use crate::wgpu;
 use crate::{
     factories::{self},
-    pipelines::{self, shadeless, ModelUniform},
+    pipelines::{self, shadeless },
     state::State,
 };
-use egui::ahash::{HashMap, HashMapExt};
-use wgpu::{self, BindGroup, ShaderStages, TextureView};
+
+use crate::glam;
 
 #[derive(Debug, Clone, Copy)]
 struct DrawCommand {
     start_vertex: usize,
     end_vertex: usize,
 
-    texture_id: Option<wgpu::Id<TextureView>>,
+    texture_id: Option<wgpu::Id<wgpu::TextureView>>,
+    transform_id : usize,
+    
+    pipeline_index: usize,
 }
 
 pub struct DrawContext {
-    pipeline: shadeless::ShadelessPipeline,
+    pipelines: [shadeless::ShadelessPipeline; 2],
+
     vertex_buffer: wgpu::Buffer,
 
     commands: Vec<DrawCommand>,
     vertices: Vec<shadeless::Vertex>,
 
-    textures: HashMap<wgpu::Id<TextureView>, BindGroup>,
+    textures: HashMap<wgpu::Id<wgpu::TextureView>, wgpu::BindGroup>,
 
     last_draw_command: DrawCommand,
+
+    last_transform_index : usize,
+    transform_matrices : [ModelUniform; 1024],
+
     last_color: [f32; 4],
     last_uv: [f32; 2],
 
     pub perspective_matrix: glam::Mat4,
     pub view_matrix: glam::Mat4,
+
 }
 
 impl DrawContext {
     pub fn new(state: &State) -> Self {
         let window_size = state.window_size;
 
-        let pipeline = shadeless::ShadelessPipeline::new_with_texture(
+        let tri_list_pipeline = shadeless::ShadelessPipeline::new_with_texture(
             state,
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
             false,
         );
+
+        let tri_strip_pipeline = shadeless::ShadelessPipeline::new_with_texture(
+            state,
+            &state.default_white_texture_bundle,
+            wgpu::PrimitiveTopology::TriangleStrip,
+            false,
+        );
+
+        let transform_matrices = [ ModelUniform::default(); 1024];
+        // for i in 0..128  {
+        //     transform_matrices[i] = glam::Mat4::from_translation(glam::vec3(i as f32 * 100.0, 0.0, 0.0));
+        // }
 
         Self {
             commands: Vec::new(),
@@ -51,6 +75,8 @@ impl DrawContext {
                 start_vertex: 0,
                 end_vertex: 0,
                 texture_id: None,
+                pipeline_index: 0,
+                transform_id : 0
             },
 
             last_color: *glam::Vec4::ONE.as_ref(),
@@ -66,7 +92,10 @@ impl DrawContext {
                 1.0,
             ),
 
-            pipeline,
+            transform_matrices,
+            last_transform_index: 0,
+
+            pipelines: [tri_list_pipeline, tri_strip_pipeline],
 
             vertex_buffer: state.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("Im mode vertex buffer"),
@@ -80,11 +109,14 @@ impl DrawContext {
     pub fn start(&mut self) {
         self.commands = Vec::new();
         self.vertices = Vec::new();
+        self.last_transform_index = 0;
         self.last_draw_command = DrawCommand {
             start_vertex: 0,
             end_vertex: 0,
 
             texture_id: None,
+            pipeline_index: 0,
+            transform_id: 0,
         };
     }
 
@@ -106,22 +138,22 @@ impl DrawContext {
 
         state.queue.write_buffer(&self.vertex_buffer, 0, data);
 
-        pipelines::write_global_uniform_buffer(
-            self.perspective_matrix * self.view_matrix.inverse(),
-            self.pipeline.global_uniform_buffer.as_ref().unwrap(),
-            &state.queue,
-        );
 
-        let matrices = [ModelUniform {
-            model_matrix: glam::Mat4::IDENTITY,
-        }];
 
-        pipelines::write_uniform_buffer(
-            &matrices,
-            &self.pipeline.model_uniform_buffer.as_ref().unwrap(),
-            &state.queue,
-            &state.device,
-        );
+        for pip in &self.pipelines {
+            pipelines::write_global_uniform_buffer(
+                self.perspective_matrix * self.view_matrix.inverse(),
+                pip.global_uniform_buffer.as_ref().unwrap(),
+                &state.queue,
+            );
+
+            pipelines::write_uniform_buffer(
+                &self.transform_matrices,
+                &pip.model_uniform_buffer.as_ref().unwrap(),
+                &state.queue,
+                &state.device,
+            );
+        }
     }
 
     pub fn begin_shape(&mut self) {
@@ -172,7 +204,7 @@ impl DrawContext {
             Some(_) => texture.global_id(),
             None => {
                 let (_, bind_group) = factories::BindGroupFactory::new()
-                    .add_texture_and_sampler(ShaderStages::VERTEX_FRAGMENT, texture, sampler)
+                    .add_texture_and_sampler(wgpu::ShaderStages::VERTEX_FRAGMENT, texture, sampler)
                     .build(device);
 
                 let id = texture.global_id(); // id 0 is the default white texture
@@ -183,8 +215,20 @@ impl DrawContext {
         self.last_draw_command.texture_id = Some(id);
     }
 
+
     pub fn pop_texture(&mut self) {
         self.last_draw_command.texture_id = None;
+    }
+
+    pub fn set_transform(&mut self, t : glam::Mat4){ 
+        
+        self.last_transform_index += 1;
+        self.transform_matrices[self.last_transform_index] = ModelUniform::new(t);
+        self.last_draw_command.transform_id = self.last_transform_index;
+    }
+
+    pub fn clear_transform(&mut self){
+        self.last_draw_command.transform_id = 0;
     }
 
     pub fn push_circle(&mut self, x: f32, y: f32, radius: f32) {
@@ -195,6 +239,8 @@ impl DrawContext {
         let mut current_step = 0.0;
 
         self.begin_shape();
+        self.last_draw_command.pipeline_index = 0;
+        // self.last_draw_command.pi
         while current_step < std::f32::consts::PI * 2.0 {
             let x1 = (current_step.cos() * radius) + x;
             let y1 = (current_step.sin() * radius) + y;
@@ -216,6 +262,7 @@ impl DrawContext {
     pub fn push_circle_stroke(&mut self, x: f32, y: f32, radius: f32) {
         // let vert_count = 16.0f32;
         const VERT_COUNT: usize = 17;
+        self.last_draw_command.pipeline_index = 0;
 
         // let step = (1.0 / vert_count) * std::f32::consts::PI * 2.0;
         // let mut current_step = 0.0;
@@ -236,6 +283,7 @@ impl DrawContext {
 
     pub fn push_rect(&mut self, x: f32, y: f32, width: f32, height: f32) {
         self.begin_shape();
+        self.last_draw_command.pipeline_index = 0;
 
         // first triangle
         self.push_uv_slice(&[1.0, 1.0]);
@@ -258,6 +306,16 @@ impl DrawContext {
         self.push_vertex(x, y + height, 0.0);
 
         self.end_shape();
+    }
+
+    pub fn set_draw_mode(&mut self, primitive: wgpu::PrimitiveTopology) {
+        match primitive {
+            wgpu::PrimitiveTopology::TriangleList => self.last_draw_command.pipeline_index = 0,
+            wgpu::PrimitiveTopology::TriangleStrip => self.last_draw_command.pipeline_index = 1,
+            _ => {
+                todo!("Not implemented yet");
+            }
+        }
     }
 
     pub fn push_line(&mut self, points: &[glam::Vec2], stroke_size: f32) {
@@ -296,32 +354,47 @@ impl DrawContext {
             next_up = next_point + a;
             next_down = next_point + b;
         }
+        self.last_draw_command.pipeline_index = 1;
         self.end_shape();
     }
 
-    pub fn draw<'rpass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        render_pass.set_bind_group(0, &self.pipeline.bind_group, &[0, 0 as u32]);
-        render_pass.set_pipeline(&self.pipeline.pipeline);
+    pub fn draw<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        let uniform_alignment = state.device.limits().min_uniform_buffer_offset_alignment as u32;
+        
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
 
+        let mut prev_pipeline = None;
         for cmd in self.commands.iter() {
+            let pip = &self.pipelines[cmd.pipeline_index];
+
+            // Only set the pipeline if we actualy need to..
+            if let Some(prev_index) = prev_pipeline{
+                if cmd.pipeline_index !=  prev_index{
+                    render_pass.set_pipeline(&pip.pipeline);                
+                }
+            }else{
+                render_pass.set_pipeline(&pip.pipeline);
+            }
+
+            // pipelines::write_uniform_buffer(data, buffer, queue, device); pip.model_uniform_buffer
+            let offset = cmd.transform_id as u32 * uniform_alignment as wgpu::DynamicOffset;
+            render_pass.set_bind_group(0, &pip.bind_group, &[0, offset]);
+
             match cmd.texture_id {
                 Some(id) => {
                     let bind_group = self.textures.get(&id).unwrap();
                     render_pass.set_bind_group(1, bind_group, &[]);
                 }
                 None => {
-                    render_pass.set_bind_group(
-                        1,
-                        self.pipeline.texture_bind_group.as_ref().unwrap(),
-                        &[],
-                    );
+                   render_pass.set_bind_group(1, pip.texture_bind_group.as_ref().unwrap(), &[]);
                 }
             }
 
             let start = cmd.start_vertex as u32;
             let end = cmd.end_vertex as u32;
             render_pass.draw(start..end, 0..1);
+
+            prev_pipeline = Some(cmd.pipeline_index);
         }
     }
 }

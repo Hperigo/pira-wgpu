@@ -25,8 +25,13 @@ struct MyExample {
 
 impl Application for MyExample {
     fn init(state: &State) -> Self {
-        let image = image::open("./assets/rusty.png").unwrap().to_rgba8();
-        let texture_bundle = factories::Texture2dFactory::new_with_options(
+
+        let base_path = std::env::current_exe().unwrap().join( "../../../../").canonicalize().unwrap();
+        println!("{:?}", base_path);
+
+
+        let image = image::open(base_path.join("./assets/rusty.png")).unwrap().to_rgba8();
+        let rust_texture_bundle = factories::Texture2dFactory::new_with_options(
             &state,
             [image.width(), image.height()],
             Texture2dOptions {
@@ -39,7 +44,7 @@ impl Application for MyExample {
             image.as_bytes(),
         );
 
-        let image = image::open("./assets/toronto-skyline.jpeg")
+        let image = image::open(base_path.join("./assets/toronto-skyline.jpeg"))
             .unwrap()
             .to_rgba8();
         let toronto_texture_bundle = factories::Texture2dFactory::new_with_options(
@@ -60,7 +65,7 @@ impl Application for MyExample {
             spacing: 25.0,
             freq: 0.01,
 
-            texture_bundle,
+            texture_bundle: rust_texture_bundle,
             toronto_texture_bundle,
         }
     }
@@ -98,6 +103,8 @@ impl Application for MyExample {
         self.im_draw.push_color(1.0, 0.2, 0.2);
         let mut points = Vec::new();
 
+        self.im_draw.set_transform( glam::Mat4::from_translation(  glam::vec3(0.0, 1000.0, 0.0) ) );
+
         for i in 0..500 {
             let x = (i as f32) * self.spacing;
             let y = (frame_count as f32 * 0.05 + (i as f32 * self.freq)).sin() * 25.0 + 350.0;
@@ -105,6 +112,7 @@ impl Application for MyExample {
             points.push(glam::vec2(x + 500.0, y + 100.0));
             self.im_draw.push_circle(x, y, 10.0);
         }
+        self.im_draw.clear_transform();
 
         self.im_draw.push_color(1.0, 1.0, 1.0);
         self.im_draw.push_line(&points, 10.0);
@@ -114,14 +122,18 @@ impl Application for MyExample {
             &self.texture_bundle.view,
             &self.texture_bundle.sampler,
         );
+
+        let x = (frame_count as f32 * 0.05).sin() * 25.0 + 350.0;
+        self.im_draw.set_transform( glam::Mat4::from_translation(  glam::vec3(x, 200.0, 0.0) ) );
         self.im_draw.push_rect(100.0, 350.0, 200.0, 100.0);
         self.im_draw.pop_texture();
+        self.im_draw.clear_transform();
 
         self.im_draw.end(state);
     }
 
-    fn render<'rpass>(&'rpass self, _state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
-        self.im_draw.draw(render_pass);
+    fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
+        self.im_draw.draw(state, render_pass);
     }
 }
 

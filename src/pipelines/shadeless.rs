@@ -117,7 +117,7 @@ impl ShadelessPipeline {
         let stride = std::mem::size_of::<Vertex>() as u64;
 
         let global_uniform_buffer = create_global_uniform(&ctx.device);
-        let model_uniform_buffer = create_uniform_buffer::<ModelUniform>(1, &ctx.device);
+        let model_uniform_buffer = create_uniform_buffer::<ModelUniform>(1024, &ctx.device);
 
         let mut bind_factory = BindGroupFactory::new();
         bind_factory.add_uniform(

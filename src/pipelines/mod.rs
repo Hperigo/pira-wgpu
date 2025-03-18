@@ -50,6 +50,14 @@ impl ModelUniform {
     }
 }
 
+impl Default for ModelUniform {
+ fn default() -> Self {
+     ModelUniform{
+        model_matrix : glam::Mat4::IDENTITY,
+     }
+ }
+}
+
 pub fn create_uniform_buffer<T>(count: usize, device: &wgpu::Device) -> wgpu::Buffer {
     let uniform_alignment =
         device.limits().min_uniform_buffer_offset_alignment as wgpu::BufferAddress;
@@ -130,8 +138,6 @@ pub fn write_uniform_buffer_stride<T>(
 
     let stride =
         ceil_to_next_multiple(size_of_t.try_into().unwrap(), uniform_alignment) as BufferAddress;
-
-    println!("Stride: {}", stride);
 
     for i in 0..data.len() {
         let ptr = (data as *const _) as *const u8;
