@@ -284,11 +284,17 @@ fn start<E: Application>(
                             ui.end_gui(&window, &state.device, &state.queue, encoder);
 
                             {
-                                render_pass_factory.add_color_atachment(
-                                    application.clear_color(),
-                                    &multisampled_view,
-                                    Some(&view),
-                                );
+
+                                if state.sample_count > 1 {
+                                    render_pass_factory.add_color_atachment(
+                                        application.clear_color(),
+                                        &multisampled_view,
+                                        Some(&view),
+                                    );
+                                }else{
+                                    render_pass_factory.add_color_atachment(application.clear_color(), &view, None);
+                                }
+
                                 let mut render_pass =
                                     render_pass_factory.get_render_pass(ctx, encoder, true);
 

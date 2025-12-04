@@ -89,7 +89,9 @@ impl Application for MyExample {
         self.im_draw.push_color_alpha(0.1, 0.2, 0.3, 1.0);
         self.im_draw.push_rect(100.0, 100.0, 200.0, 100.0);
 
-        self.im_draw.push_color(1.0, 1.0, 0.0);
+        self.im_draw.push_color(1.0, 1.0, 1.0);
+        self.im_draw.push_circle_stroke(250.0, 250.0, 50.0);
+
 
         self.im_draw.push_texture(
             &state.device,
@@ -144,6 +146,6 @@ fn main() {
             width: 1920 * 2,
             height: 1080 * 2,
         },
-        4,
+        1,
     );
 }

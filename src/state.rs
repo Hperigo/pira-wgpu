@@ -189,7 +189,7 @@ impl State {
         let multisampled_frame_descriptor = wgpu::TextureDescriptor {
             size: multisampled_texture_extent,
             mip_level_count: 1,
-            sample_count: 4,
+            sample_count: self.get_sample_count(),
             view_formats: &[TextureFormat::Bgra8UnormSrgb],
             dimension: wgpu::TextureDimension::D2,
             format: self.config.format,

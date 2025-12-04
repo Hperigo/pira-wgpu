@@ -16,16 +16,16 @@ impl<'a> RenderPassFactory<'a> {
     pub fn add_color_atachment(
         &mut self,
         clear_color: wgpu::Color,
-        source: &'a wgpu::TextureView,
+        view: &'a wgpu::TextureView,
         target: Option<&'a wgpu::TextureView>,
     ) {
         self.color_attachments
             .push(Some(wgpu::RenderPassColorAttachment {
-                view: &source,
+                view: &view,
                 resolve_target: target,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(clear_color),
-                    store: wgpu::StoreOp::Discard,
+                    store: wgpu::StoreOp::Store,
                 },
             }));
     }

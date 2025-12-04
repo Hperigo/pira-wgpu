@@ -249,6 +249,9 @@ impl DepthTextureFactory {
         sample_count: u32,
         label: &str,
     ) -> TextureBundle {
+
+        println!("Creating depth texture with size: {}, {}", config.width, config.height);
+
         let size = wgpu::Extent3d {
             // 2.
             width: config.width,
