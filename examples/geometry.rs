@@ -29,6 +29,7 @@ impl Application for MyExample {
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
             true,
+            None,
         );
 
         let mut cube = cube::Cube::new(5.0);
@@ -48,6 +49,7 @@ impl Application for MyExample {
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::LineList,
             true,
+            None,
         );
 
         Self {
@@ -117,7 +119,7 @@ impl Application for MyExample {
             &state.device,
         );
 
-        render_pass.set_bind_group(1, &self.batch.texture_bind_group.as_ref().unwrap(), &[]);
+        render_pass.set_bind_group(1, self.batch.texture_bind_group.as_ref().unwrap(), &[]);
 
         let uniform_alignment = state.device.limits().min_uniform_buffer_offset_alignment as usize;
         for i in 0..self.objects.len() {

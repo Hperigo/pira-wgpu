@@ -7,6 +7,8 @@ pub struct Texture2dFactory<'a> {
     texture_descriptor: wgpu::TextureDescriptor<'a>,
 }
 
+
+#[derive(Debug)]
 pub struct TextureBundle {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,

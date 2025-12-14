@@ -168,13 +168,14 @@ impl Application for MyExample {
         // });
 
         let image = image::open(
-            "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/buikslotermeerplein_1k.exr",
+            "assets/buikslotermeerplein_1k.exr"
+            // "assets/rusty.png",
             // "/Users/henrique/Documents/dev/rust/pira-wgpu/assets/cubemap-equi.png",
         )
         .unwrap()
         .to_rgba32f();
 
-        let px = image.get_pixel(640, 200);
+        let px = image.get_pixel(200, 200);
         println!("{:?}", px);
 
         let env_texture_bundle = factories::Texture2dFactory::new_with_options(
@@ -206,6 +207,7 @@ impl Application for MyExample {
                 wgpu::ShaderStages::FRAGMENT,
                 &env_texture_bundle.view,
                 &env_texture_bundle.sampler,
+                wgpu::SamplerBindingType::Filtering,
             )
             .add_uniform(ShaderStages::FRAGMENT, &uniform_buffer, None)
             .build(device);
@@ -257,13 +259,16 @@ impl Application for MyExample {
             layout: Some(&device.create_pipeline_layout(&pipeline_layout)),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[vertex_buffer_layout],
+                compilation_options : wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::TextureFormat::Bgra8UnormSrgb.into())],
+                // compilation_options : ,
+                compilation_options : wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: PrimitiveState {
                 ..Default::default()
@@ -280,82 +285,8 @@ impl Application for MyExample {
                 ..Default::default()
             },
             multiview: None,
+            cache : None,
         });
-
-        //-----------------------------------------------
-        //TODO: add a for loop to render this 6 times for each face
-        //      . This will spit out 6 textures that we can use to create the texture cube group binding
-        // let texture_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
-
-        // let mut command_encoder =
-        //     device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        // {
-        //     let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        //         label: None,
-        //         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-        //             view: &texture_view,
-        //             resolve_target: None,
-        //             ops: wgpu::Operations {
-        //                 load: wgpu::LoadOp::Clear(wgpu::Color::BLUE),
-        //                 store: wgpu::StoreOp::Store,
-        //             },
-        //         })],
-        //         depth_stencil_attachment: None,
-        //         occlusion_query_set: None,
-        //         timestamp_writes: None,
-        //     });
-        //     render_pass.set_pipeline(&pipeline);
-        //     render_pass.set_bind_group(0, &bind_group, &[]);
-        //     render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        //     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-        //     render_pass.draw(0..6, 0..1);
-        // }
-        // queue.submit(Some(command_encoder.finish()));
-
-        //-----------------------------------------------
-
-        // let vertices = vec![
-        //     shadeless::Vertex::new([-0.8, -0.8, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]),
-        //     shadeless::Vertex::new([0.8, 0.8, 0.0], [1.0, 1.0], [1.0, 1.0, 1.0, 1.0]),
-        //     shadeless::Vertex::new([0.8, -0.8, 0.0], [1.0, 0.0], [1.0, 1.0, 1.0, 1.0]),
-        //     shadeless::Vertex::new([-0.8, 0.8, 0.0], [0.0, 1.0], [1.0, 1.0, 1.0, 1.0]),
-        // ];
-
-        // let mut indices: [u16; 6] = [0, 1, 2, 0, 3, 1];
-        // indices.reverse();
-
-        // let texture_bundle = TextureBundle {
-        //     texture: render_target,
-        //     view: texture_view,
-        //     sampler: device.create_sampler(&SamplerDescriptor {
-        //         ..Default::default()
-        //     }),
-        // };
-
-        // let pipeline = shadeless::ShadelessPipeline::new_with_texture(
-        //     state,
-        //     &texture_bundle,
-        //     wgpu::PrimitiveTopology::TriangleList,
-        //     true,
-        // );
-
-        // Self {
-        //     pipeline,
-        //     buffer: state
-        //         .device
-        //         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //             label: Some("Vertex buffer"),
-        //             contents: bytemuck::cast_slice(&vertices),
-        //             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        //         }),
-        //     index_buffer: state
-        //         .device
-        //         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //             label: Some("Index Buffer"),
-        //             contents: bytemuck::cast_slice(&indices),
-        //             usage: wgpu::BufferUsages::INDEX,
-        //         }),
-        // }
 
         Self {
             pipeline,
@@ -392,11 +323,6 @@ impl Application for MyExample {
 
         pipelines::write_uniform_buffer(&[uniform], &self.uniform_buffer, queue, device);
 
-        // queue.write_buffer(
-        //     &self.uniform_buffer,
-        //     0,
-        //     bytemuck::cast_slice(rotation_matrix_buffer.as_ref()),
-        // );
     }
 
     fn on_gui(&mut self, egui_ctx: &mut framework::EguiLayer) {
@@ -416,35 +342,10 @@ impl Application for MyExample {
         render_pass.set_bind_group(0, &self.bind_group, &[0]);
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        //render_pass.draw(0..6, 0..1);
-
         render_pass.draw_indexed(0..36, 0, 0..1);
 
         return;
-        // let ortho_perspective_matrix = glam::Mat4::IDENTITY;
-        // pipelines::write_global_uniform_buffer(
-        //     ortho_perspective_matrix,
-        //     self.pipeline.global_uniform_buffer.as_ref().unwrap(),
-        //     &state.queue,
-        // );
 
-        // let matrices = [ModelUniform {
-        //     model_matrix: glam::Mat4::IDENTITY,
-        // }];
-
-        // pipelines::write_uniform_buffer(
-        //     &matrices,
-        //     &self.pipeline.model_uniform_buffer.as_ref().unwrap(),
-        //     &state.queue,
-        //     &state.device,
-        // );
-
-        // render_pass.set_bind_group(0, &self.pipeline.bind_group, &[0, 0 as u32]);
-        // render_pass.set_bind_group(1, self.pipeline.texture_bind_group.as_ref().unwrap(), &[]);
-        // render_pass.set_pipeline(&self.pipeline);
-        // render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        // render_pass.set_vertex_buffer(0, self.buffer.slice(..));
-        // render_pass.draw_indexed(0..6, 0, 0..1);
     }
 }
 

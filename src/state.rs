@@ -1,5 +1,8 @@
+use egui::output;
 use wgpu::{self, AddressMode, CommandEncoder, Features, TextureFormat, TextureView};
 use winit::dpi::PhysicalSize;
+
+use crate::factories;
 
 use super::factories::texture::{DepthTextureFactory, Texture2dFactory, TextureBundle};
 
@@ -79,16 +82,18 @@ impl State {
                     required_features: Features::TEXTURE_COMPRESSION_ASTC
                         | Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
                     required_limits: wgpu::Limits::default(),
+                    experimental_features : wgpu::ExperimentalFeatures::disabled(),
+                    memory_hints : wgpu::MemoryHints::default(),
+                    trace : wgpu::Trace::default(),
                     label: None,
                 },
-                None, // Trace path
             )
             .await
             .unwrap();
 
         let surface_caps = window_surface.get_capabilities(&adapter);
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             format: surface_caps.formats[0],
             view_formats: Vec::new(),
             width: window_size.width,
@@ -104,6 +109,7 @@ impl State {
             DepthTextureFactory::new(&device, &config, sample_count, "Default Depth texture");
 
         let mut tf = Texture2dFactory::new(2, 2);
+
         tf.set_sampler_descriptor(wgpu::SamplerDescriptor {
             address_mode_u: AddressMode::Repeat,
             address_mode_v: AddressMode::Repeat,
@@ -193,7 +199,7 @@ impl State {
             view_formats: &[TextureFormat::Bgra8UnormSrgb],
             dimension: wgpu::TextureDimension::D2,
             format: self.config.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             label: None,
         };
 
@@ -215,6 +221,91 @@ impl State {
         self.queue
             .submit(std::iter::once(per_frame_data.encoder.finish()));
         output_surface.present();
+    }
+
+
+    pub fn save_window_surface_to_file(&self, path: &str) {
+
+        let output_surface = self.window_surface.get_current_texture().unwrap();
+        let width = output_surface.texture.width();
+        let height = output_surface.texture.height();
+
+        let texture_size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb; // Ensure this matches your texture's format
+
+        let mid_texture = factories::Texture2dFactory::new_with_options(self,
+            [width, height],
+            factories::texture::Texture2dOptions {
+                format,
+                usage : wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ..Default::default()
+            },
+            factories::texture::SamplerOptions {
+                ..Default::default()
+            },
+            &[],
+        );
+
+
+        let u8_size = std::mem::size_of::<u8>() as u32;
+        let bytes_per_pixel = u8_size * 4; // RGBA has 4 channels
+        let unpadded_bytes_per_row = width * bytes_per_pixel;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_bytes_per_row = (unpadded_bytes_per_row + align - 1) & !(align - 1);
+        let buffer_size = padded_bytes_per_row * height;
+
+        println!("Saving texture to file: {}, {}, {}", path, width, height);
+
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Output Buffer"),
+            size: buffer_size as wgpu::BufferAddress,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+            // 3. Encode the copy command
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Copy Encoder"),
+        });
+
+        println!("Encoding copy command... {:?} - {:?}", output_surface.texture.usage(), self.config);
+
+    //     encoder.copy_texture_to_buffer(
+    //     wgpu::ImageCopyTexture {
+    //         texture: &output_surface.texture,
+    //         mip_level: 0,
+    //         origin: wgpu::Origin3d::ZERO,
+    //         aspect: wgpu::TextureAspect::All,
+    //     },
+    //     wgpu::ImageCopyBuffer {
+    //         buffer: &output_buffer,
+    //         layout: wgpu::ImageDataLayout {
+    //             offset: 0,
+    //             bytes_per_row: Some(padded_bytes_per_row),
+    //             rows_per_image: Some(height),
+    //         },
+    //     },
+    //     texture_size,
+    // );
+
+        self.queue.submit(Some(encoder.finish()));
+            // 5. Map the buffer and wait
+        let buffer_slice = output_buffer.slice(..);
+
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                println!("Mapped buffer result: {:?}", result);
+        });
+        // let (sender, receiver) = futures_intrusive::channel::shared::oneshot_channel();
+        // buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+        //     sender.send(result).expect("Failed to send buffer map result");
+        // });
+
+        
+
     }
 
     pub fn get_sample_count(&self) -> u32 {

@@ -23,6 +23,7 @@ impl<'a> RenderPassFactory<'a> {
             .push(Some(wgpu::RenderPassColorAttachment {
                 view: &view,
                 resolve_target: target,
+                depth_slice : None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(clear_color),
                     store: wgpu::StoreOp::Store,

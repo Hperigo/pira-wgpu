@@ -1,5 +1,5 @@
 use crate::state::State;
-use wgpu::{BlendState, DepthStencilState, PrimitiveTopology, ShaderModule, TextureFormat};
+use wgpu::{BlendState, DepthStencilState, PipelineCompilationOptions, PrimitiveTopology, ShaderModule, TextureFormat};
 
 #[derive(Debug)]
 pub enum DepthConfig {
@@ -66,8 +66,8 @@ pub struct RenderPipelineFactory<'a> {
     depth_config: DepthConfig,
     blend_config: BlendConfig,
 
-    vert_shader_entry: &'a str,
-    frag_shader_entry: &'a str,
+    vert_shader_entry: Option<&'a str>,
+    frag_shader_entry: Option<&'a str>,
 
     color_target_format: Option<TextureFormat>,
 
@@ -152,11 +152,11 @@ impl<'a> RenderPipelineFactory<'a> {
         self.color_target_format = format;
     }
 
-    pub fn set_vert_entry(&mut self, name: &'a str) {
+    pub fn set_vert_entry(&mut self, name: Option<&'a str>) {
         self.vert_shader_entry = name;
     }
 
-    pub fn set_frag_entry(&mut self, name: &'a str) {
+    pub fn set_frag_entry(&mut self, name: Option<&'a str>) {
         self.frag_shader_entry = name;
     }
 
@@ -190,6 +190,7 @@ impl<'a> RenderPipelineFactory<'a> {
             module: shader_module,
             entry_point: self.vert_shader_entry,
             buffers: &self.vertex_buffer_layouts[..],
+            compilation_options: PipelineCompilationOptions::default(),
         };
 
         let color_target_format = match self.color_target_format {
@@ -204,6 +205,7 @@ impl<'a> RenderPipelineFactory<'a> {
         let frag_state = wgpu::FragmentState {
             module: shader_module,
             entry_point: self.frag_shader_entry,
+            compilation_options : PipelineCompilationOptions::default(),
 
             targets: &[Some(wgpu::ColorTargetState {
                 format: color_target_format,
@@ -228,16 +230,17 @@ impl<'a> RenderPipelineFactory<'a> {
                 ..Default::default()
             },
             multiview: None,
+            cache : None,
         };
 
         state.device.create_render_pipeline(&r_pipeline)
     }
 
-    fn default_vert_entry_point() -> &'a str {
-        return "vs_main";
+    fn default_vert_entry_point() -> Option<&'a str> {
+        return Some("vs_main");
     }
 
-    fn default_frag_entry_point() -> &'a str {
-        return "fs_main";
+    fn default_frag_entry_point() -> Option<&'a str> {
+        return Some("fs_main");
     }
 }

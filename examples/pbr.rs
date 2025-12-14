@@ -278,7 +278,7 @@ impl Application for MyExample {
         );
 
         render_pass.set_bind_group(0, &pipeline.bind_group, &[0, 0]);
-        render_pass.set_bind_group(1, &pipeline.texture_bind_group.as_ref().unwrap(), &[]);
+        render_pass.set_bind_group(1, pipeline.texture_bind_group.as_ref().unwrap(), &[]);
 
         render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

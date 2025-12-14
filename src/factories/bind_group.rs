@@ -4,6 +4,9 @@ pub struct BindGroupFactory<'a> {
     resources: Vec<wgpu::BindGroupEntry<'a>>,
     // buffers : Vec<wgpu::Buffer>,
     pub binding_types: Vec<(wgpu::ShaderStages, wgpu::BindingType)>,
+
+    bind_group_layout_label : Option<&'a str>,
+    bind_group_label : Option<&'a str>,
 }
 
 impl<'a> BindGroupFactory<'a> {
@@ -12,7 +15,20 @@ impl<'a> BindGroupFactory<'a> {
             resources: Vec::new(),
             // buffers : Vec::new(),
             binding_types: Vec::new(),
+
+            bind_group_label : Some("Bind group from helper"),
+            bind_group_layout_label : Some("Bind group layout from helper"),
         }
+    }
+
+    pub fn set_labels<'b>(
+        &'b mut self,
+        layout_label : &'a str,
+        bind_group_label : &'a str,
+    ) -> &'b mut Self {
+        self.bind_group_layout_label = Some(layout_label);
+        self.bind_group_label = Some(bind_group_label);
+        self
     }
 
     pub fn add_uniform<'b>(
@@ -104,6 +120,7 @@ impl<'a> BindGroupFactory<'a> {
         stage: wgpu::ShaderStages,
         texture_view: &'a wgpu::TextureView,
         sampler: &'a wgpu::Sampler,
+        sampler_binding_type : wgpu::SamplerBindingType,
     ) -> &'b mut Self {
         self.resources.push(wgpu::BindGroupEntry {
             binding: self.resources.len() as u32,
@@ -120,7 +137,7 @@ impl<'a> BindGroupFactory<'a> {
             sample_type: wgpu::TextureSampleType::Float { filterable: false },
         };
         let sampler_binding_type =
-            wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering);
+            wgpu::BindingType::Sampler(sampler_binding_type);
 
         self.binding_types.push((stage, texture_binding_type));
         self.binding_types.push((stage, sampler_binding_type));
@@ -144,13 +161,13 @@ impl<'a> BindGroupFactory<'a> {
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &layout_entries.as_slice(),
-            label: Some("Bind group layout from helper"),
+            label: self.bind_group_layout_label,
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: self.resources.as_slice(),
-            label: Some("Bind group from helper"),
+            label: self.bind_group_label,
         });
 
         (bind_group_layout, bind_group)

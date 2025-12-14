@@ -1,3 +1,5 @@
+use std::default;
+
 use crate::factories::texture::{SamplerOptions, Texture2dOptions, TextureBundle};
 
 use crate::factories::{BindGroupFactory, RenderPipelineFactory};
@@ -196,7 +198,9 @@ impl SkyRenderer {
                 label: Some("equirect_to_cubemap"),
                 layout: Some(&pipeline_layout),
                 module: &shader_module,
-                entry_point: "compute_equirect_to_cubemap",
+                entry_point: Some("compute_equirect_to_cubemap"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                cache: None,
             });
 
         let dst_view = cube_texture.create_view(&TextureViewDescriptor {
@@ -356,6 +360,7 @@ impl SkyRenderer {
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                             view: &texture_view,
                             resolve_target: None,
+                            depth_slice: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                                 store: wgpu::StoreOp::Store,
@@ -518,6 +523,7 @@ impl SkyRenderer {
                             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                                 view: &texture_view,
                                 resolve_target: None,
+                                depth_slice: None,
                                 ops: wgpu::Operations {
                                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                                     store: wgpu::StoreOp::Store,
@@ -644,7 +650,9 @@ impl SkyRenderer {
             label: Some("BRDF LUT pipeline"),
             layout: Some(&pipeline_layout),
             module: &shader_module,
-            entry_point: "main",
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+            entry_point: Some("main"),
         });
 
         // TODO: Create bind groups via factory functions -----

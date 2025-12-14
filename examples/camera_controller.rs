@@ -26,6 +26,7 @@ impl Application for MyExample {
             &state.default_white_texture_bundle,
             PrimitiveTopology::LineStrip,
             true,
+            None,
         );
 
         let mesh = ShadelessPipeline::get_buffers_from_geometry(state, &axis_geo.geometry);
@@ -103,9 +104,10 @@ impl Application for MyExample {
             &state.device,
         );
 
+
         render_pass.set_bind_group(
             1,
-            &self.pipeline_batch.texture_bind_group.as_ref().unwrap(),
+            self.pipeline_batch.texture_bind_group.as_ref().unwrap(),
             &[],
         );
 

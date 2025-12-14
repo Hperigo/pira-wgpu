@@ -138,6 +138,7 @@ impl PbrPipeline {
             wgpu::ShaderStages::VERTEX_FRAGMENT,
             &sky.brdf_lut.view,
             &sky.brdf_lut.sampler,
+            wgpu::SamplerBindingType::Filtering,
         );
 
         let (texture_bind_group_layout, texture_bind_group) =

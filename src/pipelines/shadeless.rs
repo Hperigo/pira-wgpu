@@ -105,6 +105,9 @@ impl ShadelessPipeline {
         texture: &TextureBundle,
         topology: PrimitiveTopology,
         enable_depth: bool,
+
+        custom_texture_bind_group: Option<(wgpu::BindGroupLayout, wgpu::BindGroup)>
+
     ) -> Self {
         let shader_module = ctx
             .device
@@ -132,14 +135,22 @@ impl ShadelessPipeline {
         );
         let (bind_group_layout, bind_group) = bind_factory.build(&ctx.device);
 
-        let mut texture_bind_group_factory: BindGroupFactory<'_> = BindGroupFactory::new();
-        texture_bind_group_factory.add_texture_and_sampler(
-            wgpu::ShaderStages::VERTEX_FRAGMENT,
-            &texture.view,
-            &texture.sampler,
-        );
-        let (texture_bind_group_layout, texture_bind_group) =
-            texture_bind_group_factory.build(&ctx.device);
+
+//        texture_bind_group_factory.add_texture_hdr_and_sampler(wgpu::ShaderStages::VERTEX_FRAGMENT, &texture.view, &texture.sampler, wgpu::SamplerBindingType::NonFiltering);
+
+
+        let (texture_bind_group_layout, texture_bind_group) = if let Some(bg_bundle) = custom_texture_bind_group {
+            bg_bundle
+        }else{
+            let mut texture_bind_group_factory: BindGroupFactory<'_> = BindGroupFactory::new();
+            texture_bind_group_factory.add_texture_and_sampler(
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                &texture.view,
+                &texture.sampler,
+            );
+            texture_bind_group_factory.build(&ctx.device)
+        };
+            
 
         let mut pipeline_factory = RenderPipelineFactory::new();
 
@@ -176,6 +187,15 @@ impl ShadelessPipeline {
             model_uniform_buffer: Some(model_uniform_buffer),
         }
     }
+
+    pub fn set_texture_bind_group(
+        &mut self,
+        texture_bind_group: wgpu::BindGroup,
+        texture_bind_group_layout: wgpu::BindGroupLayout,
+    ) {
+        self.texture_bind_group = Some(texture_bind_group);
+        self.texture_bind_group_layout = Some(texture_bind_group_layout);
+    }   
 
     pub fn get_buffers_from_geometry(ctx: &State, geo_data: &GeometryData) -> GpuMesh {
         let mut vertices = Vec::new();

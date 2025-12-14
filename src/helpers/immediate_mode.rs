@@ -9,12 +9,12 @@ use crate::{
 
 use crate::glam;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct DrawCommand {
     start_vertex: usize,
     end_vertex: usize,
 
-    texture_id: Option<wgpu::Id<wgpu::TextureView>>,
+    texture_id: Option<wgpu::TextureView>,
     transform_id : usize,
     
     pipeline_index: usize,
@@ -28,7 +28,7 @@ pub struct DrawContext {
     commands: Vec<DrawCommand>,
     vertices: Vec<shadeless::Vertex>,
 
-    textures: HashMap<wgpu::Id<wgpu::TextureView>, wgpu::BindGroup>,
+    textures: HashMap<wgpu::TextureView, wgpu::BindGroup>,
 
     last_draw_command: DrawCommand,
 
@@ -52,6 +52,7 @@ impl DrawContext {
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
             false,
+            None,
         );
 
         let tri_strip_pipeline = shadeless::ShadelessPipeline::new_with_texture(
@@ -59,6 +60,7 @@ impl DrawContext {
             &state.default_white_texture_bundle,
             wgpu::PrimitiveTopology::TriangleStrip,
             false,
+            None,
         );
 
         let transform_matrices = [ ModelUniform::default(); 1024];
@@ -163,7 +165,7 @@ impl DrawContext {
     }
     pub fn end_shape(&mut self) {
         self.last_draw_command.end_vertex = self.vertices.len();
-        self.commands.push(self.last_draw_command)
+        self.commands.push(self.last_draw_command.clone())
     }
 
     pub fn push_color(&mut self, r: f32, g: f32, b: f32) {
@@ -200,19 +202,20 @@ impl DrawContext {
         texture: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
     ) {
-        let id = match self.textures.get(&texture.global_id()) {
-            Some(_) => texture.global_id(),
+        let id = match self.textures.get(&texture) {
+
+            Some(_) => texture,
             None => {
                 let (_, bind_group) = factories::BindGroupFactory::new()
                     .add_texture_and_sampler(wgpu::ShaderStages::VERTEX_FRAGMENT, texture, sampler)
                     .build(device);
 
-                let id = texture.global_id(); // id 0 is the default white texture
-                self.textures.insert(id, bind_group);
+                let id = texture; // id 0 is the default white texture
+                self.textures.insert(id.clone(), bind_group);
                 id
             }
         };
-        self.last_draw_command.texture_id = Some(id);
+        self.last_draw_command.texture_id = Some(id.clone());
     }
 
 
@@ -380,7 +383,7 @@ impl DrawContext {
             let offset = cmd.transform_id as u32 * uniform_alignment as wgpu::DynamicOffset;
             render_pass.set_bind_group(0, &pip.bind_group, &[0, offset]);
 
-            match cmd.texture_id {
+            match &cmd.texture_id {
                 Some(id) => {
                     let bind_group = self.textures.get(&id).unwrap();
                     render_pass.set_bind_group(1, bind_group, &[]);

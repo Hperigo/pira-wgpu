@@ -23,7 +23,6 @@ struct ComputeExample {
     pipeline: shadeless::ShadelessPipeline,
 
     _texture_bundle: TextureBundle,
-    bind_group: BindGroup,
 }
 
 impl Application for ComputeExample {
@@ -38,8 +37,10 @@ impl Application for ComputeExample {
             .create_compute_pipeline(&ComputePipelineDescriptor {
                 label: Some("Compute pipeline"),
                 layout: None,
-                entry_point: "main",
+                entry_point: Some("main"),
                 module: &compute_shader,
+                compilation_options : wgpu::PipelineCompilationOptions::default(),
+                cache : None,
             });
 
         let output_texture = factories::Texture2dFactory::new_with_options(
@@ -93,12 +94,14 @@ impl Application for ComputeExample {
         loop {
             let result = state
                 .device
-                .poll(wgpu::MaintainBase::WaitForSubmissionIndex(idx.clone()));
+                .poll(wgpu::PollType::Wait { submission_index: Some(idx.clone()), timeout: None });
 
-            if result.is_queue_empty() == true {
+            if result.is_ok() {
                 break;
             }
         }
+
+        println!("Compute pass complete!");
 
         // ------------ DRAW PIPELINE ------------
         let vertices = vec![
@@ -111,21 +114,29 @@ impl Application for ComputeExample {
         let mut indices: [u16; 6] = [0, 1, 2, 0, 3, 1];
         indices.reverse();
 
-        let pipeline = shadeless::ShadelessPipeline::new_with_texture(
-            state,
-            &state.default_white_texture_bundle,
-            wgpu::PrimitiveTopology::TriangleList,
-            true,
-        );
+
 
         let mut texture_bind_group_factory = BindGroupFactory::new();
+        texture_bind_group_factory.set_labels("Compute texture layout label", "Compute texture bind group label");
         texture_bind_group_factory.add_texture_hdr_and_sampler(
             wgpu::ShaderStages::VERTEX_FRAGMENT,
             &output_texture.view,
             &output_texture.sampler,
+            wgpu::SamplerBindingType::NonFiltering,
         );
-        let (_draw_bind_group_layout, draw_bind_group) =
+        let (draw_bind_group_layout, draw_bind_group) =
             texture_bind_group_factory.build(&state.device);
+
+        let mut pipeline = shadeless::ShadelessPipeline::new_with_texture(
+            state,
+            &output_texture,
+            wgpu::PrimitiveTopology::TriangleList,
+            true,
+            Some( (draw_bind_group_layout, draw_bind_group))
+        );
+
+        //pipeline.set_texture_bind_group(draw_bind_group.clone(), _draw_bind_group_layout);
+
 
         ComputeExample {
             clear_color: [0.5, 0.1, 0.1, 1.0],
@@ -145,7 +156,7 @@ impl Application for ComputeExample {
                 }),
 
             pipeline,
-            bind_group: draw_bind_group,
+            // bind_group: draw_bind_group,
             _texture_bundle: output_texture,
         }
     }
@@ -202,7 +213,7 @@ impl Application for ComputeExample {
         );
 
         render_pass.set_bind_group(0, &self.pipeline.bind_group, &[0, 0 as u32]);
-        render_pass.set_bind_group(1, &self.bind_group, &[]);
+        render_pass.set_bind_group(1, &self.pipeline.texture_bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline.pipeline);
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.set_vertex_buffer(0, self.buffer.slice(..));

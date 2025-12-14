@@ -22,6 +22,9 @@ struct KtxExample {
     use_toronto_photo: bool,
     texture_bundle: TextureBundle,
     texture_bind_group: BindGroup,
+
+
+    save_frame : bool,
 }
 
 impl Application for KtxExample {
@@ -76,6 +79,7 @@ impl Application for KtxExample {
             &texture_bundle,
             wgpu::PrimitiveTopology::TriangleList,
             true,
+            None,
         );
 
         Self {
@@ -100,12 +104,36 @@ impl Application for KtxExample {
             use_toronto_photo: false,
             texture_bundle,
             texture_bind_group,
+            save_frame: false,
         }
     }
 
     fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {}
+    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {
+
+
+        if self.save_frame {
+            self.save_frame = false;
+
+            state.save_window_surface_to_file("window.png");
+            // framework::utils::save_texture_to_file(
+            //     &state.device,
+            //     &state.queue,
+            //     &self.texture_bundle.view,
+            //     "ktx_texture_output.png",
+            // );
+        }
+    }
+
+    fn on_gui(&mut self, egui_ctx: &mut framework::EguiLayer) {
+        egui::Window::new("Settings").show(&egui_ctx.ctx, |ui| {
+            if ui.button("Save texture").clicked() {
+                println!("Saving texture...");
+                self.save_frame = true;
+            }
+        });
+    }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
         let ortho_perspective_matrix = glam::Mat4::IDENTITY;
