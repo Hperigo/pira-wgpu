@@ -261,7 +261,7 @@ impl DepthTextureFactory {
             depth_or_array_layers: 1,
         };
 
-        pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth24Plus; // 1.
+        let depth_format: wgpu::TextureFormat = Self::get_default_depth_format();
 
         let desc = wgpu::TextureDescriptor {
             label: Some(label),
@@ -270,7 +270,7 @@ impl DepthTextureFactory {
             view_formats: &[],
             sample_count: sample_count,
             dimension: wgpu::TextureDimension::D2,
-            format: DEPTH_FORMAT,
+            format: depth_format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT // 3.
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST,
@@ -295,4 +295,9 @@ impl DepthTextureFactory {
             sampler,
         }
     }
+
+
+    pub fn get_default_depth_format() -> wgpu::TextureFormat {
+        wgpu::TextureFormat::Depth24Plus
+    }  
 }

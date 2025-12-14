@@ -12,7 +12,7 @@ use winit::{
 };
 
 use crate::{
-    factories::render_pass::RenderPassFactory,
+    factories::{DepthTextureFactory, render_pass::RenderPassFactory},
     state::{PerFrameData, Size, State},
 };
 
@@ -77,7 +77,7 @@ pub trait UILayer {
 
     fn render<'rpass>(
         &'rpass self,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
+        render_pass: wgpu::RenderPass<'rpass>,
         screen_descriptor: &ScreenDescriptor,
     );
 }
@@ -110,7 +110,7 @@ impl UILayer for EguiLayer {
             wgpu::TextureFormat::Bgra8UnormSrgb,
             egui_wgpu::RendererOptions {
                 msaa_samples: 4,
-                depth_stencil_format: None,
+                depth_stencil_format: Some( DepthTextureFactory::get_default_depth_format() ),
                 dithering: true,
                 predictable_texture_filtering: false,
             },
@@ -168,11 +168,13 @@ impl UILayer for EguiLayer {
         self.primitives = primitives;
     }
 
-    fn render<'rpass>(
-        &'rpass self,
-        render_pass: &mut wgpu::RenderPass<'rpass>,
+    fn render(
+        &self,
+        render_pass: wgpu::RenderPass,
         screen_descriptor: &ScreenDescriptor,
     ) {
+
+        self.renderer.render(&mut render_pass.forget_lifetime(), &self.primitives, screen_descriptor);
         // self.renderer
         //     .render(render_pass, &self.primitives, screen_descriptor)
     }
@@ -333,7 +335,7 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
                             ],
                             pixels_per_point: window.scale_factor() as f32,
                         };
-                        ui.render(&mut render_pass, &screen_descriptor)
+                        ui.render(render_pass, &screen_descriptor)
                     }
                 });
                 puffin::GlobalProfiler::lock().new_frame();
