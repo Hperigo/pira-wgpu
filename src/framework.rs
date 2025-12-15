@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::{process::exit, sync::Arc, time::Instant};
 
 use egui::{FontDefinitions, ViewportId};
 use egui_wgpu::ScreenDescriptor;
@@ -233,11 +233,24 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
             Size::new(size.width, size.height),
         ));
 
-        let mut config = state
-            .window_surface
-            .get_default_config(&state.adapter, size.width, size.height)
-            .expect("Surface isn't supported by the adapter.");
+        // let mut config = state
+        //     .window_surface
+        //     .get_default_config(&state.adapter, size.width, size.height)
+        //     .expect("Surface isn't supported by the adapter.");
+        
+        let caps = state.window_surface.get_capabilities(&state.adapter);
 
+        let mut config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            format: *caps.formats.first().unwrap(),
+            width: size.width,
+            height: size.height,
+            desired_maximum_frame_latency: 2,
+            present_mode: *caps.present_modes.first().unwrap(),
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![],
+        };
+        
         let surface_view_format = config.format.add_srgb_suffix();
         config.view_formats.push(surface_view_format);
 
@@ -338,6 +351,7 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
                         ui.render(render_pass, &screen_descriptor)
                     }
                 });
+
                 puffin::GlobalProfiler::lock().new_frame();
 
                 window.request_redraw();

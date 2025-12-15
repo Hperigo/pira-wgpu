@@ -1,5 +1,3 @@
-use std::default;
-
 use crate::factories::texture::{SamplerOptions, Texture2dOptions, TextureBundle};
 
 use crate::factories::{BindGroupFactory, RenderPipelineFactory};

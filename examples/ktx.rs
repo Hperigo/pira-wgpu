@@ -115,7 +115,6 @@ impl Application for KtxExample {
 
         if self.save_frame {
             self.save_frame = false;
-
             state.save_window_surface_to_file("window.png");
             // framework::utils::save_texture_to_file(
             //     &state.device,

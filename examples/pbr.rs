@@ -214,21 +214,21 @@ impl Application for MyExample {
             ui.label("Light");
             ui.add(
                 egui::DragValue::new(&mut self.uniform.light_intensity)
-                    .clamp_range(0.0..=20.0)
+                    .range(0.0..=20.0)
                     .speed(0.01),
             );
 
             ui.label("Roughness");
             ui.add(
                 egui::DragValue::new(&mut self.uniform.roughness)
-                    .clamp_range(0.0..=1.0)
+                    .range(0.0..=1.0)
                     .speed(0.01),
             );
 
             ui.label("Metallic");
             ui.add(
                 egui::DragValue::new(&mut self.uniform.metallic)
-                    .clamp_range(0.0..=1.0)
+                    .range(0.0..=1.0)
                     .speed(0.01),
             );
         });

@@ -4,7 +4,7 @@ use glam::Mat4;
 use pira_wgpu::factories::texture::{SamplerOptions, Texture2dOptions, TextureBundle};
 use pira_wgpu::factories::BindGroupFactory;
 use wgpu::util::DeviceExt;
-use wgpu::{self, BindGroup, ComputePipelineDescriptor, ShaderModuleDescriptor};
+use wgpu::{self, ComputePipelineDescriptor, ShaderModuleDescriptor};
 
 use pira_wgpu::framework::Application;
 use pira_wgpu::pipelines::{self, shadeless, ModelUniform};
@@ -127,7 +127,7 @@ impl Application for ComputeExample {
         let (draw_bind_group_layout, draw_bind_group) =
             texture_bind_group_factory.build(&state.device);
 
-        let mut pipeline = shadeless::ShadelessPipeline::new_with_texture(
+        let pipeline = shadeless::ShadelessPipeline::new_with_texture(
             state,
             &output_texture,
             wgpu::PrimitiveTopology::TriangleList,
