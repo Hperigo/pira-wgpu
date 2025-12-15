@@ -143,6 +143,7 @@ impl Application for MyExample {
             window_size,
             delta_time,
             sample_count,
+            ..
         } = state;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -305,7 +306,7 @@ impl Application for MyExample {
 
     fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {
+    fn update(&mut self, state: &mut State, frame_count: u64, delta_time: f64) {
         let State { device, queue, .. } = state;
 
         let rotation_matrix_buffer = glam::Mat4::from_euler(

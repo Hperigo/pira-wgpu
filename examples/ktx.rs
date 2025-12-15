@@ -110,9 +110,10 @@ impl Application for KtxExample {
 
     fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {
+    fn update(&mut self, state: &mut State, frame_count: u64, delta_time: f64) {
 
-
+        self.clear_color = [1.0, 1.0, 1.0, 1.0];
+        
         if self.save_frame {
             self.save_frame = false;
             state.save_window_surface_to_file("window.png");
@@ -134,6 +135,15 @@ impl Application for KtxExample {
         });
     }
 
+    fn clear_color(&self) -> wgpu::Color {
+        wgpu::Color {
+            r: self.clear_color[0] as f64,
+            g: self.clear_color[1] as f64,
+            b: self.clear_color[2] as f64,
+            a: self.clear_color[3] as f64,
+        }
+    }
+
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {
         let ortho_perspective_matrix = glam::Mat4::IDENTITY;
         pipelines::write_global_uniform_buffer(
@@ -152,6 +162,7 @@ impl Application for KtxExample {
             &state.queue,
             &state.device,
         );
+
 
         render_pass.set_bind_group(0, &self.pipeline.bind_group, &[0, 0 as u32]);
         render_pass.set_bind_group(1, &self.texture_bind_group, &[]);

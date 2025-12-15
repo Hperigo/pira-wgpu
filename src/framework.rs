@@ -54,7 +54,7 @@ pub trait Application: 'static + Sized {
 
     fn event(&mut self, _state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64);
+    fn update(&mut self, state: &mut State, frame_count: u64, delta_time: f64);
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>);
 }
@@ -226,7 +226,7 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
         let instance = wgpu::Instance::default();
         let window_surface = instance.create_surface(window.clone()).unwrap();
 
-        let state = pollster::block_on(State::new(
+        let mut state = pollster::block_on(State::new(
             self.sample_count,
             instance,
             window_surface,
@@ -302,7 +302,7 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
 
                 {
                     puffin::profile_scope!("update");
-                    application.update(&state, self.frame_count, delta_time.as_secs_f64());
+                    application.update(state, self.frame_count, delta_time.as_secs_f64());
                 }
                 self.frame_count += 1;
 
@@ -351,9 +351,8 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
                         ui.render(render_pass, &screen_descriptor)
                     }
                 });
-
-                puffin::GlobalProfiler::lock().new_frame();
-
+                
+                puffin::GlobalProfiler::lock().new_frame();                
                 window.request_redraw();
             }
             WindowEvent::CloseRequested => {

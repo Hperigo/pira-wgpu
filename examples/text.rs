@@ -14,7 +14,7 @@ impl Application for MyExample {
 
     fn event(&mut self, state: &State, _event: &winit::event::WindowEvent) {}
 
-    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {}
+    fn update(&mut self, state: &mut State, frame_count: u64, delta_time: f64) {}
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {}
 }

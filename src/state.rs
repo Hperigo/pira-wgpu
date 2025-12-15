@@ -53,6 +53,10 @@ pub struct State {
     pub delta_time: f32,
 
     pub sample_count: u32,
+
+
+    // -----
+    pub temp_texture : Option<TextureBundle>,
 }
 
 pub struct PerFrameData {
@@ -149,6 +153,8 @@ impl State {
             delta_time: 0.0,
             window_size,
             sample_count,
+
+            temp_texture : None,
         }
     }
 
@@ -225,7 +231,12 @@ impl State {
         output_surface.present();
     }
 
-    pub fn save_window_surface_to_file(&self, _path: &str) {
+    pub fn save_window_surface_to_file(&mut self, _path: &str) {
+
+        unsafe {
+            self.device.start_graphics_debugger_capture();
+        }
+
         let output_surface = self.window_surface.get_current_texture().unwrap();
         let width = output_surface.texture.width();
         let height = output_surface.texture.height();
@@ -239,11 +250,13 @@ impl State {
             factories::texture::Texture2dOptions {
                 format,
                 usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+                label: Some("Temp Texture for Saving"),
                 ..Default::default()
             },
             factories::texture::SamplerOptions {
                 ..Default::default()
             },
+            
             &[],
         );
 
@@ -253,8 +266,6 @@ impl State {
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padded_bytes_per_row = (unpadded_bytes_per_row + align - 1) & !(align - 1);
         let buffer_size = padded_bytes_per_row * height;
-
-        // println!("Saving texture to file: {}, {}, {}", path, width, height);
 
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
@@ -267,22 +278,16 @@ impl State {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Copy Encoder"),
+                label: Some("SAVE TEXTURE Copy Encoder"),
             });
-
-            // let source_view = &output_surface.texture.create_view(&wgpu::TextureViewDescriptor{ 
-            //     usage : Some( wgpu::TextureUsages::RENDER_ATTACHMENT),
-            //     ..Default::default()                    
-            // });
-            // let blitter =  TextureBlitterBuilder::new(&self.device, format).blend_state(BlendState::ALPHA_BLENDING).build();
-            // // blitter.copy(&self.device, &mut encoder, , mid_texture);
-            // blitter.copy(&self.device, &mut encoder, source_view, &mid_texture.view);
 
             let texture_size = wgpu::Extent3d {
                 width,
                 height,
                 depth_or_array_layers: 1,
             };
+        
+        self.temp_texture = Some(mid_texture);
 
         encoder.copy_texture_to_texture(
             TexelCopyTextureInfoBase {
@@ -292,7 +297,7 @@ impl State {
                 aspect: wgpu::TextureAspect::All,
             },
             TexelCopyTextureInfoBase {
-                texture: &mid_texture.texture,
+                texture: &self.temp_texture.as_ref().unwrap().texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
@@ -331,6 +336,7 @@ impl State {
 
         let (tx, rx) = futures::channel::oneshot::channel();
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            println!("Buffer mapped... {:?}", result);
             tx.send(result).unwrap();
         });
 
@@ -362,6 +368,10 @@ impl State {
 
         drop(data);
         output_buffer.unmap();
+
+        unsafe  {
+            self.device.stop_graphics_debugger_capture();
+        }
 
     }
 

@@ -60,7 +60,7 @@ impl Application for MyExample {
         self.orbit_control.handle_events(state, event);
     }
 
-    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {
+    fn update(&mut self, _state: &mut State, _frame_count: u64, _delta_time: f64) {
         self.orbit_control.update();
     }
 

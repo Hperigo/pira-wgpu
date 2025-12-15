@@ -154,7 +154,7 @@ impl Application for MyExample {
         self.orbit_controls.handle_events(state, event);
     }
 
-    fn update(&mut self, state: &State, frame_count: u64, delta_time: f64) {
+    fn update(&mut self, state: &mut State, frame_count: u64, delta_time: f64) {
         let State { device, queue, .. } = state;
 
         self.orbit_controls.update();

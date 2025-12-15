@@ -83,7 +83,7 @@ impl Application for MyExample {
 
     fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {}
 
-    fn update(&mut self, state: &State, frame_count: u64, _delta_time: f64) {
+    fn update(&mut self, state: &mut State, frame_count: u64, _delta_time: f64) {
         self.im_draw.start();
 
         self.im_draw.push_color_alpha(0.1, 0.2, 0.3, 1.0);

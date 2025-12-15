@@ -170,7 +170,7 @@ impl Application for ComputeExample {
         }
     }
 
-    fn update(&mut self, _state: &State, _frame_count: u64, _delta_time: f64) {}
+    fn update(&mut self, _state: &mut State, _frame_count: u64, _delta_time: f64) {}
 
     fn resize(
         &mut self,
