@@ -1,0 +1,164 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug example '2d_camera'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=2d_camera"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'camera_controller'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=camera_controller"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'compute'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=compute"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'draw_line'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=draw_line"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'framebuffer'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=framebuffer"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'geometry'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=geometry"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'immediate_mode'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=immediate_mode"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'ktx'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=ktx"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'pbr'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=pbr"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'simple_app'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=simple_app"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'template'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=template"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'text'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=text"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug example 'texture'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=texture"
+                ]
+            },
+            "args": []
+        },
+    ]
+}

@@ -1,4 +1,4 @@
-use std::{process::exit, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 use egui::{FontDefinitions, ViewportId};
 use egui_wgpu::ScreenDescriptor;
@@ -226,7 +226,7 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
         let instance = wgpu::Instance::default();
         let window_surface = instance.create_surface(window.clone()).unwrap();
 
-        let mut state = pollster::block_on(State::new(
+        let state = pollster::block_on(State::new(
             self.sample_count,
             instance,
             window_surface,

@@ -33,7 +33,7 @@ pub struct DrawContext {
     last_draw_command: DrawCommand,
 
     last_transform_index : usize,
-    transform_matrices : [ModelUniform; 1024],
+    transform_matrices : [ModelUniform; 128],
 
     last_color: [f32; 4],
     last_uv: [f32; 2],
@@ -63,10 +63,7 @@ impl DrawContext {
             None,
         );
 
-        let transform_matrices = [ ModelUniform::default(); 1024];
-        // for i in 0..128  {
-        //     transform_matrices[i] = glam::Mat4::from_translation(glam::vec3(i as f32 * 100.0, 0.0, 0.0));
-        // }
+        let transform_matrices = [ ModelUniform::default(); 128];
 
         Self {
             commands: Vec::new(),

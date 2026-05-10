@@ -135,10 +135,6 @@ impl ShadelessPipeline {
         );
         let (bind_group_layout, bind_group) = bind_factory.build(&ctx.device);
 
-
-//        texture_bind_group_factory.add_texture_hdr_and_sampler(wgpu::ShaderStages::VERTEX_FRAGMENT, &texture.view, &texture.sampler, wgpu::SamplerBindingType::NonFiltering);
-
-
         let (texture_bind_group_layout, texture_bind_group) = if let Some(bg_bundle) = custom_texture_bind_group {
             bg_bundle
         }else{

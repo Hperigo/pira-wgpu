@@ -25,7 +25,6 @@ struct MyExample {
 
 impl Application for MyExample {
     fn init(state: &State) -> Self {
-
         let base_path = std::env::current_exe().unwrap().join( "../../../../").canonicalize().unwrap();
         println!("{:?}", base_path);
 
@@ -60,8 +59,10 @@ impl Application for MyExample {
             image.as_bytes(),
         );
 
+        let im_draw = DrawContext::new(state);
+
         Self {
-            im_draw: DrawContext::new(state),
+            im_draw,
             spacing: 25.0,
             freq: 0.01,
 
@@ -143,9 +144,9 @@ fn main() {
     framework::run::<MyExample>(
         "imidiate mode",
         PhysicalSize {
-            width: 1920 * 2,
-            height: 1080 * 2,
+            width: 1920,
+            height: 1080,
         },
-        1,
+        4,
     );
 }

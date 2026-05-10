@@ -83,8 +83,7 @@ impl State {
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
-                required_features: Features::TEXTURE_COMPRESSION_ASTC
-                    | Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
+                required_features: Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
                 required_limits: wgpu::Limits::default(),
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
                 memory_hints: wgpu::MemoryHints::default(),
