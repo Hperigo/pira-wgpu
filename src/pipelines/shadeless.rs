@@ -167,7 +167,7 @@ impl ShadelessPipeline {
         let pipeline = pipeline_factory.create_render_pipeline(
             &ctx,
             &shader_module,
-            &[&bind_group_layout, &texture_bind_group_layout],
+            &[Some(&bind_group_layout), Some(&texture_bind_group_layout)],
         );
 
         Self {

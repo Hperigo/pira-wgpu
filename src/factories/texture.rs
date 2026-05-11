@@ -18,7 +18,7 @@ pub struct TextureBundle {
 pub struct SamplerOptions {
     pub address_mode: wgpu::AddressMode,
     pub filter: wgpu::FilterMode,
-    pub mipmap_filter: wgpu::FilterMode,
+    pub mipmap_filter: wgpu::MipmapFilterMode,
 }
 
 impl Default for SamplerOptions {
@@ -26,7 +26,7 @@ impl Default for SamplerOptions {
         Self {
             address_mode: wgpu::AddressMode::ClampToEdge,
             filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
         }
     }
 }
@@ -67,7 +67,7 @@ impl<'a> Texture2dFactory<'a> {
 
                 mag_filter: wgpu::FilterMode::Nearest,
                 min_filter: wgpu::FilterMode::Nearest,
-                mipmap_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::MipmapFilterMode::Nearest,
 
                 ..Default::default()
             },
@@ -284,7 +284,7 @@ impl DepthTextureFactory {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             compare: None, //Some(wgpu::CompareFunction::LessEqual), // 5.
             ..Default::default()
         });

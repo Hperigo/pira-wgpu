@@ -235,7 +235,7 @@ impl Application for MyExample {
         let c_pipeline = pipeline_factory.create_render_pipeline(
             &state,
             &c_shader_module,
-            &[&bind_group_layout],
+            &[Some(&bind_group_layout)],
         );
 
         let instance_data: Vec<Vec2> = Vec::new();
@@ -259,7 +259,7 @@ impl Application for MyExample {
             .add_depth_stencil(pira_wgpu::factories::render_pipeline::DepthConfig::DefaultWrite);
 
         let pipeline =
-            pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);
+            pipeline_factory.create_render_pipeline(&state, &shader_module, &[Some(&bind_group_layout)]);
 
         MyExample {
             clear_color: [0.0, 0.0, 0.0, 0.0],

@@ -90,7 +90,7 @@ impl Application for MyExample {
             .add_depth_stencil(pira_wgpu::factories::render_pipeline::DepthConfig::DefaultWrite);
 
         let pipeline =
-            pipeline_factory.create_render_pipeline(&state, &shader_module, &[&bind_group_layout]);
+            pipeline_factory.create_render_pipeline(&state, &shader_module, &[Some(&bind_group_layout)]);
 
         MyExample {
             clear_color: [0.0, 0.0, 0.0, 0.0],

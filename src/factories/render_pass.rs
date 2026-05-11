@@ -70,6 +70,7 @@ impl<'a> RenderPassFactory<'a> {
             depth_stencil_attachment: depth_stencil,
             occlusion_query_set: None,
             timestamp_writes: None,
+            multiview_mask: None,
         });
 
         render_pass

@@ -17,8 +17,8 @@ impl DepthConfig {
             DepthConfig::DefaultWrite => {
                 Some(wgpu::DepthStencilState {
                     format: wgpu::TextureFormat::Depth24Plus,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less, // 1.
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::Less), // 1.
                     stencil: wgpu::StencilState::default(),     // 2.
                     bias: wgpu::DepthBiasState::default(),
                 })
@@ -26,8 +26,8 @@ impl DepthConfig {
             DepthConfig::DefaultDontWrite => {
                 Some(wgpu::DepthStencilState {
                     format: wgpu::TextureFormat::Depth24Plus,
-                    depth_write_enabled: false,
-                    depth_compare: wgpu::CompareFunction::Less, // 1.
+                    depth_write_enabled: Some(false),
+                    depth_compare: Some(wgpu::CompareFunction::Less), // 1.
                     stencil: wgpu::StencilState::default(),     // 2.
                     bias: wgpu::DepthBiasState::default(),
                 })
@@ -168,7 +168,7 @@ impl<'a> RenderPipelineFactory<'a> {
         &self,
         state: &State,
         shader_module: &ShaderModule,
-        bind_group_layout: &[&wgpu::BindGroupLayout],
+        bind_group_layout: &[Option<&wgpu::BindGroupLayout>],
     ) -> wgpu::RenderPipeline {
         let depth_config = self.depth_config.get();
 
@@ -182,7 +182,8 @@ impl<'a> RenderPipelineFactory<'a> {
         let pipeline_layout_desc = wgpu::PipelineLayoutDescriptor {
             label: Some("PipelineLayout"),
             bind_group_layouts: bind_group_layout,
-            push_constant_ranges: &[],
+            //push_constant_ranges: &[],
+            immediate_size : 0,
         };
         let pipeline_layout = state.device.create_pipeline_layout(&pipeline_layout_desc);
 
@@ -229,8 +230,8 @@ impl<'a> RenderPipelineFactory<'a> {
                 count: sample_count,
                 ..Default::default()
             },
-            multiview: None,
             cache : None,
+            multiview_mask : None,
         };
 
         state.device.create_render_pipeline(&r_pipeline)

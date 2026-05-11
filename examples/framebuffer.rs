@@ -41,7 +41,7 @@ var hdr_texture: texture_2d<f32>;
 var hdr_sampler: sampler;
 
 @group(0) @binding(2)
-var<uniform> uniform : Uniforms;
+var<uniform> m_uniform : Uniforms;
 
 
 // Rotation matrix around the X axis.
@@ -88,15 +88,15 @@ fn aces_tone_map(hdr: vec3<f32>) -> vec3<f32> {
 fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
     
-    var spherical_coord = normalize(uniform.rotation_matrix * vec4(in.cube_coords * vec3(1.0, -1.0, 1.0), 0.0));
+    var spherical_coord = normalize(m_uniform.rotation_matrix * vec4(in.cube_coords * vec3(1.0, -1.0, 1.0), 0.0));
     var cube_uv = sample_spherical_map(spherical_coord.xyz);
 
     var texture_color = textureLoad(hdr_texture, vec2<i32>(cube_uv * vec2<f32>(1024.0, 512.0)), 0).rgb;
 
     var gamma = 2.2;
     var mapped = texture_color / (texture_color + vec3(1.0));
-    mapped = vec3(1.0) - exp(-texture_color * uniform.exposure); //pow(mapped, vec3(1.0 / gamma));
-    return vec4(mapped, 1.0);  //vec4(aces_tone_map(texture_color + uniform.exposure) , 1.0);
+    mapped = vec3(1.0) - exp(-texture_color * m_uniform.exposure); //pow(mapped, vec3(1.0 / gamma));
+    return vec4(mapped, 1.0);  //vec4(aces_tone_map(texture_color + m_uniform.exposure) , 1.0);
  }
 ";
 
@@ -215,7 +215,7 @@ impl Application for MyExample {
 
         let pipeline_layout = PipelineLayoutDescriptor {
             label: Some("Equirectangular-pipeline"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[Some(&bind_group_layout)],
             ..Default::default()
         };
 
@@ -276,8 +276,8 @@ impl Application for MyExample {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth24Plus,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Less, // 1.
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Less), // 1.
                 stencil: wgpu::StencilState::default(),     // 2.
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -285,7 +285,7 @@ impl Application for MyExample {
                 count: 4,
                 ..Default::default()
             },
-            multiview: None,
+            multiview_mask : None,
             cache : None,
         });
 
@@ -327,15 +327,15 @@ impl Application for MyExample {
     }
 
     fn on_gui(&mut self, egui_ctx: &mut framework::EguiLayer) {
-        egui::SidePanel::new(egui::panel::Side::Left, "Debug").show(&egui_ctx.ctx, |ui| {
-            ui.drag_angle(&mut self.rotation.x);
-            ui.drag_angle(&mut self.rotation.y);
-            ui.drag_angle(&mut self.rotation.z);
+        // egui::SidePanel::new(egui::panel::Side::Left, "Debug").show(&egui_ctx.ctx, |ui| {
+        //     ui.drag_angle(&mut self.rotation.x);
+        //     ui.drag_angle(&mut self.rotation.y);
+        //     ui.drag_angle(&mut self.rotation.z);
 
-            ui.spacing();
+        //     ui.spacing();
 
-            ui.add(egui::DragValue::new(&mut self.exposure).speed(0.01));
-        });
+        //     ui.add(egui::DragValue::new(&mut self.exposure).speed(0.01));
+        // });
     }
 
     fn render<'rpass>(&'rpass self, state: &State, render_pass: &mut wgpu::RenderPass<'rpass>) {

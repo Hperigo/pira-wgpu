@@ -58,7 +58,7 @@ impl Application for ComputeExample {
             SamplerOptions {
                 address_mode: wgpu::AddressMode::Repeat,
                 filter: wgpu::FilterMode::Nearest,
-                mipmap_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             },
             &[],
         );
