@@ -36,7 +36,7 @@ impl Application for KtxExample {
 
         let levels = reader.levels().collect::<Vec<_>>();
 
-        let data = levels[0];
+        let data = levels[0].data;
 
         let texture_bundle = factories::Texture2dFactory::new_ktx(
             &state,

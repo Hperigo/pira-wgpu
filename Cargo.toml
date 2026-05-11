@@ -19,7 +19,7 @@ image = { version = "0.24.8", default-features = false, features = [
 ] }
 glam = { version = "0.29.2", features = ["bytemuck", "serde"] }
 rand = { version = "*" }
-# wgpu_text = "29.0.0"
+wgpu_text = "*"
 
 
 egui_extras = { version = "0.34.2", features = ["all_loaders"] }
