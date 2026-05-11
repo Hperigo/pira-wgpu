@@ -63,8 +63,8 @@ fn main() {
     framework::run::<MyExample>(
         "simple_app",
         PhysicalSize {
-            width: 1920 * 2,
-            height: 1080 * 2,
+            width: 1920,
+            height: 1080,
         },
         4,
     );
