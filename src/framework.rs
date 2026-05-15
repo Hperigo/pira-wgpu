@@ -129,9 +129,11 @@ impl UILayer for EguiLayer {
         self.ctx.is_pointer_over_area()
     }
 
-    fn begin_gui(&mut self) {
+    fn begin_gui(&mut self ) { 
         let raw_input = self.winit_state.egui_input_mut().take();
         self.ctx.begin_pass(raw_input);
+        //self.ctx.run_ui(raw_input, run_ui);
+        
     }
 
     fn end_gui(
@@ -317,9 +319,10 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
                         view,
                         multisampled_view,
                     } = frame_data;
+                    
 
-                    ui.begin_gui();
-
+                    ui.begin_gui(); 
+                                    
                     application.on_gui(ui);
 
                     ui.end_gui(&window, &state.device, &state.queue, encoder);

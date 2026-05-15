@@ -1,3 +1,4 @@
+use egui::UiBuilder;
 use pira_wgpu::factories::texture::TextureBundle;
 use pira_wgpu::framework::EguiLayer;
 use pira_wgpu::immediate_mode::DrawContext;
@@ -82,7 +83,10 @@ impl Application for MyExample {
         }
     }
 
-    fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {}
+    fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {
+        let mut ui = egui::Ui::new(_ui_layer.ctx.clone(), egui::Id::new("root-ui"), egui::UiBuilder::new());
+        egui::Panel::left("left").show_inside(&mut ui, |ui|{});
+    }
 
     fn update(&mut self, state: &mut State, frame_count: u64, _delta_time: f64) {
         self.im_draw.start();
