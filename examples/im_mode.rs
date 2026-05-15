@@ -1,4 +1,3 @@
-use egui::UiBuilder;
 use pira_wgpu::factories::texture::TextureBundle;
 use pira_wgpu::framework::EguiLayer;
 use pira_wgpu::immediate_mode::DrawContext;

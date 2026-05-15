@@ -126,7 +126,7 @@ impl UILayer for EguiLayer {
 
     fn event(&mut self, window: &Window, event: &WindowEvent) -> bool {
         let _ = self.winit_state.on_window_event(window, event);
-        self.ctx.is_pointer_over_area()
+        self.ctx.is_pointer_over_egui()
     }
 
     fn begin_gui(&mut self ) { 
@@ -322,7 +322,7 @@ impl<E: Application> ApplicationHandler for AppHandler<E> {
                     
 
                     ui.begin_gui(); 
-                                    
+
                     application.on_gui(ui);
 
                     ui.end_gui(&window, &state.device, &state.queue, encoder);

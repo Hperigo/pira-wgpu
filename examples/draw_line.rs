@@ -344,12 +344,6 @@ impl Application for MyExample {
             },
             event::WindowEvent::CursorMoved { position, .. } => {
                 if self.is_mouse_down {
-                    let mut ndc = glam::Vec2::new(0.0, 0.0);
-                    ndc.x = (position.x as f32 / ctx.window_size.width_f32()) * 2.0 - 1.0;
-                    ndc.y = ((ctx.window_size.height_f32() - position.y as f32)
-                        / ctx.window_size.height_f32())
-                        * 2.0
-                        - 1.0;
 
                     let ndc = glam::Vec2::new(position.x as f32 / 2.0, position.y as f32 / 2.0);
 
