@@ -342,14 +342,8 @@ impl Application for MyExample {
                     last_cmd.end_index = current_len - 1;
                 }
             },
-            event::WindowEvent::CursorMoved { position, .. } => {
+            event::WindowEvent::CursorMoved { .. } => {
                 if self.is_mouse_down {
-
-                    let ndc = glam::Vec2::new(position.x as f32 / 2.0, position.y as f32 / 2.0);
-
-                    println!("Moving: {:?}", ndc);
-                    self.instance_points.push(ndc);
-
                     self.instance_buffer.destroy();
                     self.instance_buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
                         label: Some("instance point buffer"),

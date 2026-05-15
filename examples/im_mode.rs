@@ -84,7 +84,7 @@ impl Application for MyExample {
 
     fn on_gui(&mut self, _ui_layer: &mut EguiLayer) {
         let mut ui = egui::Ui::new(_ui_layer.ctx.clone(), egui::Id::new("root-ui"), egui::UiBuilder::new());
-        egui::Panel::left("left").show_inside(&mut ui, |ui|{});
+        egui::Panel::left("left").show_inside(&mut ui, |_ui|{});
     }
 
     fn update(&mut self, state: &mut State, frame_count: u64, _delta_time: f64) {
